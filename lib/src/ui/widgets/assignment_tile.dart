@@ -5,7 +5,13 @@ import '../../models/assignment.dart';
 
 class AssignmentTile extends StatelessWidget {
   final dynamic item;
-  const AssignmentTile({required this.item, super.key});
+  final Color color;
+
+  const AssignmentTile({
+    required this.item,
+    this.color = const Color(0xFFFFFFFF),
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,17 +39,21 @@ class AssignmentTile extends StatelessWidget {
     }
 
     final due = assignment.dueDate;
-    return ListTile(
-      leading: const Icon(Icons.task_alt),
-      title: Text(assignment.title),
-      subtitle: Text(assignment.description),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(DateFormat('dd/MM/yyyy').format(due)),
-          const SizedBox(height: 4),
-          Text('Peso: ${assignment.weight.toStringAsFixed(1)}'),
-        ],
+    return Card(
+      color: color, // cor de fundo da caixa
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: ListTile(
+        leading: const Icon(Icons.task_alt),
+        title: Text(assignment.title),
+        subtitle: Text(assignment.description),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(DateFormat('dd/MM/yyyy').format(due)),
+            const SizedBox(height: 4),
+            Text('Peso: ${assignment.weight.toStringAsFixed(1)}'),
+          ],
+        ),
       ),
     );
   }

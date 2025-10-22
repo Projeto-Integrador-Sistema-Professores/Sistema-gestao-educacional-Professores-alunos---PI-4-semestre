@@ -20,54 +20,115 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     final authSvc = ref.watch(authServiceProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Entrar - Gestor de Alunos')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Card(
-            margin: const EdgeInsets.all(16),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                TextField(
-                  controller: _raCtrl,
-                  decoration: const InputDecoration(labelText: 'RA'),
+      body: Column(
+        children: [
+          // Parte superior azul - agora com Container em vez de AppBar
+          Container(
+            height: 160, 
+            width: double.infinity,
+            color: const Color(0xFF1FB1C2), // Cor azul
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 10),
+                child: Image.asset(
+                  'assets/images/logopoliedro.png',
+                  height: 120,
+                  fit: BoxFit.contain,
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Senha'),
-                ),
-                const SizedBox(height: 16),
-                if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: loading ? null : () async {
-                    setState(() { loading = true; error = null; });
-                    final ok = await authSvc.login(_raCtrl.text.trim(), _passCtrl.text.trim());
-                    setState(() { loading = false; });
-                    if (ok) {
-                      ref.read(authStateProvider.notifier).state = AuthState(isAuthenticated: true);
-                      if (context.mounted) context.go('/home');
-                    } else {
-                      setState(() { error = 'Credenciais inválidas'; });
-                    }
-                  },
-                  child: loading ? const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2,)) : const Text('Entrar'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {
-                    _raCtrl.text = 'demo';
-                    _passCtrl.text = 'demo';
-                  },
-                  child: const Text('Usar credenciais demo'),
-                )
-              ]),
+              ),
             ),
           ),
-        ),
+          // Parte do meio com o formulário (expande)
+          Expanded(
+            child: Container(
+              color: Colors.white, // Fundo branco para a área do formulário
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Card(
+                    margin: const EdgeInsets.all(16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Login',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          TextField(
+                            controller: _raCtrl,
+                            decoration: const InputDecoration(labelText: 'RA'),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _passCtrl,
+                            obscureText: true,
+                            decoration: const InputDecoration(labelText: 'Senha'),
+                          ),
+                          const SizedBox(height: 16),
+                          if (error != null)
+                            Text(error!, style: const TextStyle(color: Colors.red)),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: loading
+                                ? null
+                                : () async {
+                                    setState(() {
+                                      loading = true;
+                                      error = null;
+                                    });
+                                    final ok = await authSvc.login(
+                                        _raCtrl.text.trim(), _passCtrl.text.trim());
+                                    setState(() {
+                                      loading = false;
+                                    });
+                                    if (ok) {
+                                      ref.read(authStateProvider.notifier).state =
+                                          AuthState(isAuthenticated: true);
+                                      if (context.mounted) context.go('/home');
+                                    } else {
+                                      setState(() {
+                                        error = 'Credenciais inválidas';
+                                      });
+                                    }
+                                  },
+                            child: loading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Text('Entrar'),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              _raCtrl.text = 'demo';
+                              _passCtrl.text = 'demo';
+                            },
+                            child: const Text('Usar credenciais demo'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Parte inferior amarela
+          Container(
+            height: 160, 
+            width: double.infinity,
+            color: const Color(0xFFFFC66E),
+          ),
+        ],
       ),
     );
   }
