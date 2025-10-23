@@ -61,11 +61,23 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
 
     if (result != null) {
+      // garante que o objeto tenha um id (caso CreateCoursePage não tenha gerado)
+      final id = (result['id'] != null && result['id'].toString().isNotEmpty)
+          ? result['id'].toString()
+          : UniqueKey().toString();
+      result['id'] = id;
+
       // adiciona à lista local e persiste
       setState(() {
         _localCourses.add(result);
       });
       await _saveLocalCourses();
+
+      // navega para a página da matéria recém-criada
+      if (mounted) {
+        // usa GoRouter para navegar para a rota /course/:id
+        context.push('/course/$id');
+      }
     }
   }
 
@@ -130,8 +142,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ],
                     ),
                     onTap: () {
-                      // se quiser, abrir detalhes com router
-                      // GoRouter.of(context).push('/course/${c['id']}');
+                      // abrir detalhes usando GoRouter
+                      final id = c['id'] ?? '';
+                      if (id.toString().isNotEmpty) {
+                        context.push('/course/$id');
+                      }
                     },
                   ),
                 );
