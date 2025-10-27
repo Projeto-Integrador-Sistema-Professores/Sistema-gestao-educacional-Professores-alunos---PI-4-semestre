@@ -3,6 +3,10 @@ import 'package:dio/dio.dart';
 import '../utils/constants.dart';
 import 'json_storage.dart';
 
+// MUDANÇA: Importar o storage de matérias e o modelo
+import 'subject_storage.dart';
+import '../models/subject.dart';
+
 class ApiClient {
   final Dio dio;
   ApiClient._(this.dio);
@@ -44,60 +48,9 @@ class ApiClient {
 
   // --- helpers for fake mode that now persist to JSON ---
 
-  // MUDANÇA: Adicionado um "banco de dados" fake para os detalhes das matérias
-  final _fakeCourseDb = {
-    "c1": {
-      "id": "c1",
-      "code": "MAT101",
-      "title": "Cálculo I",
-      "description": "Fundamentos de cálculo diferencial e integral.",
-      "materials": [
-        {"id": "m1", "title": "Aula 01 - Introdução", "fileUrl": "#"},
-        {"id": "m2", "title": "Aula 02 - Derivadas", "fileUrl": "#"}
-      ],
-      "assignments": [
-        // Lista base de atividades (será mesclada com o JSON)
-        {
-          "id": "a1-base",
-          "title": "Lista 1 (Base)",
-          "description": "Exercícios sobre limites.",
-          "dueDate": DateTime.now().add(const Duration(days: 7)).toIso8601String(),
-          "weight": 1.0
-        }
-      ],
-      "grades": [
-        // Lista base de notas (será mesclada com o JSON)
-        {"studentId": "s1", "studentName": "Ana Silva", "finalGrade": 8.5},
-        {"studentId": "s2", "studentName": "Bruno Costa", "finalGrade": 7.0}
-      ]
-    },
-    "c2": {
-      "id": "c2",
-      "code": "PROG202",
-      "title": "Programação II",
-      "description": "Estruturas de dados e algoritmos.",
-      "materials": [
-        {"id": "m3", "title": "Aula 01 - Listas", "fileUrl": "#"},
-        {"id": "m4", "title": "Aula 02 - Árvores", "fileUrl": "#"}
-      ],
-      "assignments": [
-        // Lista base de atividades (será mesclada com o JSON)
-        {
-          "id": "a2-base",
-          "title": "Trabalho 1 (Base)",
-          "description": "Implementar lista encadeada.",
-          "dueDate": DateTime.now().add(const Duration(days: 10)).toIso8601String(),
-          "weight": 2.0
-        }
-      ],
-      "grades": [
-        // Lista base de notas (será mesclada com o JSON)
-         {"studentId": "s3", "studentName": "Carla Souza", "finalGrade": 9.0}
-      ]
-    }
-  };
+  // MUDANÇA: Removemos o _fakeCourseDb. Agora vamos ler do SubjectStorage.
 
-  // MUDANÇA: Adicionado um "banco de dados" fake para as listas de alunos
+  // MUDANÇA: Simplificamos o _fakeStudentsDb para ter um padrão genérico
   final _fakeStudentsDb = {
     "c1": {
       "items": [
@@ -107,10 +60,17 @@ class ApiClient {
       ]
     },
     "c2": {
-       "items": [
-          {"id": "s4", "name": "Daniel Moreira", "ra": "2019004", "role": "student"},
-          {"id": "s5", "name": "Elisa Fernandes", "ra": "2019005", "role": "student"},
-        ]
+      "items": [
+        {"id": "s4", "name": "Daniel Moreira", "ra": "2019004", "role": "student"},
+        {"id": "s5", "name": "Elisa Fernandes", "ra": "2019005", "role": "student"},
+      ]
+    },
+    // Lista padrão para qualquer outra matéria
+    "default": {
+      "items": [
+        {"id": "s10", "name": "Aluno Genérico 1", "ra": "2025001", "role": "student"},
+        {"id": "s11", "name": "Aluno Genérico 2", "ra": "2025002", "role": "student"},
+      ]
     }
   };
 
@@ -128,23 +88,39 @@ class ApiClient {
 
     // /courses
     if (path == '/courses') {
-      // Retorna a lista de matérias (isso está correto)
-      return {
-        "items": [
-          {
+      // MUDANÇA: Carrega a lista de matérias do SubjectStorage
+      final storage = SubjectStorage();
+      final subjects = await storage.loadSubjects();
+
+      // Mapeia de List<Subject> para o formato JSON que a API espera
+      final items = subjects.map((s) {
+        return {
+          "id": s.id,
+          // "code": s.room ?? "SALA-??", // Usando "room" como "code"
+          "title": s.name,
+          // "description": s.professor ?? "Sem professor", // Usando "professor" como "description"
+        };
+      }).toList();
+
+      // Adiciona as matérias "base" se não estiverem lá (opcional, mas bom para demo)
+      if (items.indexWhere((item) => item['id'] == 'c1') == -1) {
+        items.insert(0, {
             "id": "c1",
             "code": "MAT101",
-            "title": "Cálculo I",
+            "title": "Cálculo I (Base)",
             "description": "Fundamentos de cálculo diferencial e integral."
-          },
-          {
+          });
+      }
+       if (items.indexWhere((item) => item['id'] == 'c2') == -1) {
+        items.insert(1, {
             "id": "c2",
             "code": "PROG202",
-            "title": "Programação II",
+            "title": "Programação II (Base)",
             "description": "Estruturas de dados e algoritmos."
-          }
-        ]
-      };
+          });
+      }
+
+      return {"items": items};
     }
 
     // /courses/{id}/students
@@ -152,8 +128,8 @@ class ApiClient {
       final parts = path.split('/');
       final courseId = parts[2];
       
-      // MUDANÇA: Retorna a lista de alunos com base no courseId
-      return _fakeStudentsDb[courseId] ?? {"items": []};
+      // MUDANÇA: Retorna a lista de alunos para c1, c2, ou a lista "default"
+      return _fakeStudentsDb[courseId] ?? _fakeStudentsDb['default']!;
     }
 
     // /courses/{id}
@@ -161,27 +137,67 @@ class ApiClient {
       final parts = path.split('/');
       final courseId = parts[2];
 
-      // MUDANÇA: Pega os dados base do nosso "banco de dados" fake
-      // Se não encontrar, usa 'c1' como padrão para evitar erros.
-      final baseData = _fakeCourseDb[courseId] ?? _fakeCourseDb['c1']!; 
-      
-      // Copia os dados base para um novo mapa para podermos modificá-lo
-      final base = Map<String, dynamic>.from(baseData);
-      // Garante que as listas internas também sejam cópias
-      base['materials'] = List<Map<String, dynamic>>.from(base['materials'] as List);
-      base['assignments'] = List<Map<String, dynamic>>.from(base['assignments'] as List);
-      base['grades'] = List<Map<String, dynamic>>.from(base['grades'] as List);
+      // MUDANÇA: Busca os detalhes da matéria no SubjectStorage
+      final storage = SubjectStorage();
+      final subjects = await storage.loadSubjects();
+      Subject? subject;
+      try {
+        subject = subjects.firstWhere((s) => s.id == courseId);
+      } catch (e) {
+        subject = null; // Não encontrou
+      }
 
+      Map<String, dynamic> base;
 
-      // O RESTANTE DA LÓGICA É IDÊNTICA AO SEU CÓDIGO ORIGINAL.
-      // Ela mescla os dados do JSON com os dados base que acabamos de carregar.
+      if (subject != null) {
+        // Encontrou a matéria no SubjectStorage. Cria um "base payload" com ela.
+        base = {
+          "id": subject.id,
+          // "code": subject.room ?? "SALA-??",
+          "title": subject.name,
+          // "description": subject.professor ?? "Sem professor",
+          "materials": [], // Lista vazia, será preenchida pelo JSON
+          "assignments": [], // Lista vazia, será preenchida pelo JSON
+          "grades": [], // Lista vazia, será preenchida pelo JSON
+        };
+      } else if (courseId == 'c1') {
+         // Fallback para as matérias base (caso não estejam no SubjectStorage)
+         base = {
+            "id": "c1", "code": "MAT101", "title": "Cálculo I (Base)",
+            "description": "Disciplina exemplo.",
+            "materials": [{"id": "m1", "title": "Aula 01 - Intro", "fileUrl": "#"}],
+            "assignments": [], "grades": []
+         };
+      } else if (courseId == 'c2') {
+         // Fallback para as matérias base
+         base = {
+            "id": "c2", "code": "PROG202", "title": "Programação II (Base)",
+            "description": "Disciplina exemplo.",
+            "materials": [{"id": "m3", "title": "Aula 01 - Listas", "fileUrl": "#"}],
+            "assignments": [], "grades": []
+         };
+      } else {
+        // Não encontrou em lugar nenhum. Retorna uma página de erro.
+        base = {
+          "id": courseId,
+          "code": "404",
+          "title": "Matéria não encontrada",
+          "description": "A matéria com ID $courseId não foi encontrada no SubjectStorage.",
+          "materials": [],
+          "assignments": [],
+          "grades": [],
+        };
+      }
+
+      // O RESTANTE DA LÓGICA É IDÊNTICA.
+      // Ela mescla os dados do JSON (atividades/notas salvas) com os dados base
+      // que acabamos de carregar dinamicamente.
       try {
         final stored = await JsonStorage.instance.readCourseData(courseId);
         
         final persistedAssignments = (stored['assignments'] as List<dynamic>).cast<Map<String, dynamic>>();
         final persistedGrades = (stored['grades'] as List<dynamic>).cast<Map<String, dynamic>>();
 
-        // ensure any persisted assignments have string dates
         final cleanedAssignments = persistedAssignments.map((a) {
           final copy = Map<String, dynamic>.from(a);
           if (copy['dueDate'] is DateTime) {
@@ -190,14 +206,10 @@ class ApiClient {
           return copy;
         }).toList();
 
-        // merge: base.assignments + cleaned persisted assignments
-        // A lista base (do _fakeCourseDb) é mostrada primeiro
         final mergedAssignments = <Map<String, dynamic>>[];
         mergedAssignments.addAll((base['assignments'] as List).cast<Map<String, dynamic>>());
         mergedAssignments.addAll(cleanedAssignments);
 
-        // merge: base.grades + cleaned persisted grades
-        // A lista base (do _fakeCourseDb) é mostrada primeiro
         final mergedGrades = <Map<String, dynamic>>[];
         mergedGrades.addAll((base['grades'] as List).cast<Map<String, dynamic>>());
         mergedGrades.addAll(persistedGrades);
@@ -217,6 +229,7 @@ class ApiClient {
 
   Future<Map<String, dynamic>> _fakePost(String path, dynamic data) async {
     // POST /courses/{id}/assignments -> create assignment and persist
+    // NENHUMA MUDANÇA AQUI, JÁ ESTAVA CORRETO
     if (path.contains('/courses/') && path.contains('/assignments')) {
       final parts = path.split('/');
       final courseId = parts[2];
@@ -228,7 +241,6 @@ class ApiClient {
         'description': data['description'] ?? '',
         'dueDate': (data['dueDate'] is String) ? data['dueDate'] : DateTime.tryParse(data['dueDate']?.toString() ?? '')?.toIso8601String() ?? now.toIso8601String(),
         'weight': (data['weight'] ?? 1.0).toDouble(),
-        // we can store created_at for later db migration
         'createdAt': now.toIso8601String(),
       };
 
@@ -237,18 +249,17 @@ class ApiClient {
     }
 
     // POST /courses/{id}/grades -> persist grade
+    // NENHUMA MUDANÇA AQUI, JÁ ESTAVA CORRETO
     if (path.contains('/courses/') && path.contains('/grades')) {
       final parts = path.split('/');
       final courseId = parts[2];
       
-      // MUDANÇA: Lógica para buscar o nome do aluno se não for fornecido
       String studentName = data['studentName'] ?? '';
       if (studentName.isEmpty) {
-        // Tenta encontrar o nome do aluno na lista fake
-        final studentList = _fakeStudentsDb[courseId]?['items'] ?? [];
+        final studentList = _fakeStudentsDb[courseId]?['items'] ?? _fakeStudentsDb['default']!['items'];
         try {
-          final student = studentList.firstWhere((s) => s['id'] == data['studentId']);
-          studentName = student['name'] ?? 'Aluno Desconhecido';
+          final student = studentList?.firstWhere((s) => s['id'] == data['studentId']);
+          studentName = student?['name'] ?? 'Aluno Desconhecido';
         } catch (e) {
           studentName = 'Aluno (ID: ${data['studentId']})';
         }
@@ -256,13 +267,12 @@ class ApiClient {
 
       final grade = {
         'studentId': data['studentId'],
-        'studentName': studentName, // Usa o nome que encontramos
+        'studentName': studentName,
         'assignmentId': data['assignmentId'],
         'score': (data['score'] is num) ? (data['score'] as num).toDouble() : double.tryParse('${data['score']}') ?? 0.0,
         'createdAt': DateTime.now().toIso8601String(),
       };
       await JsonStorage.instance.appendGrade(courseId, grade);
-      // Retorna os dados salvos para que a UI possa ser atualizada (se necessário)
       return {'ok': true, 'saved': grade};
     }
 
