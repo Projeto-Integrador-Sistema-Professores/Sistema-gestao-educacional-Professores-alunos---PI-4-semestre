@@ -2,14 +2,14 @@
 import 'package:dio/dio.dart';
 import '../utils/constants.dart';
 import 'json_storage.dart';
-
-// MUDANÇA: Importar o storage de matérias e o modelo
 import 'subject_storage.dart';
 import '../models/subject.dart';
 
 class ApiClient {
   final Dio dio;
   ApiClient._(this.dio);
+
+  List<Subject>? _cachedSubjects;
 
   factory ApiClient({String? token}) {
     final dio = Dio(BaseOptions(
@@ -48,15 +48,11 @@ class ApiClient {
 
   // --- helpers for fake mode that now persist to JSON ---
 
-  // MUDANÇA: Removemos o _fakeCourseDb. Agora vamos ler do SubjectStorage.
-
-  // MUDANÇA: Simplificamos o _fakeStudentsDb para ter um padrão genérico
   final _fakeStudentsDb = {
     "c1": {
       "items": [
         {"id": "s1", "name": "Ana Silva", "ra": "2019001", "role": "student"},
         {"id": "s2", "name": "Bruno Costa", "ra": "2019002", "role": "student"},
-        {"id": "s3", "name": "Carla Souza", "ra": "2019003", "role": "student"},
       ]
     },
     "c2": {
@@ -65,11 +61,9 @@ class ApiClient {
         {"id": "s5", "name": "Elisa Fernandes", "ra": "2019005", "role": "student"},
       ]
     },
-    // Lista padrão para qualquer outra matéria
     "default": {
       "items": [
         {"id": "s10", "name": "Aluno Genérico 1", "ra": "2025001", "role": "student"},
-        {"id": "s11", "name": "Aluno Genérico 2", "ra": "2025002", "role": "student"},
       ]
     }
   };
@@ -88,21 +82,23 @@ class ApiClient {
 
     // /courses
     if (path == '/courses') {
-      // MUDANÇA: Carrega a lista de matérias do SubjectStorage
       final storage = SubjectStorage();
       final subjects = await storage.loadSubjects();
+      
+      _cachedSubjects = subjects;
 
-      // Mapeia de List<Subject> para o formato JSON que a API espera
+      // MUDANÇA: Mapeia os dados corretos (s.code) que vêm do SubjectStorage
+      // Isso corrige a lista de matérias (image_ffdf10.png)
       final items = subjects.map((s) {
         return {
           "id": s.id,
-          // "code": s.room ?? "SALA-??", // Usando "room" como "code"
+          "code": s.code, // <-- Corrigido (usava s.room)
           "title": s.name,
-          // "description": s.professor ?? "Sem professor", // Usando "professor" como "description"
+          // "description": s.professor ?? "Matéria de ${s.name}", // <-- Corrigido (usava s.professor)
         };
       }).toList();
 
-      // Adiciona as matérias "base" se não estiverem lá (opcional, mas bom para demo)
+      // Adiciona as matérias "base" se não estiverem no storage
       if (items.indexWhere((item) => item['id'] == 'c1') == -1) {
         items.insert(0, {
             "id": "c1",
@@ -127,8 +123,6 @@ class ApiClient {
     if (path.contains('/courses/') && path.endsWith('/students')) {
       final parts = path.split('/');
       final courseId = parts[2];
-      
-      // MUDANÇA: Retorna a lista de alunos para c1, c2, ou a lista "default"
       return _fakeStudentsDb[courseId] ?? _fakeStudentsDb['default']!;
     }
 
@@ -137,12 +131,23 @@ class ApiClient {
       final parts = path.split('/');
       final courseId = parts[2];
 
-      // MUDANÇA: Busca os detalhes da matéria no SubjectStorage
-      final storage = SubjectStorage();
-      final subjects = await storage.loadSubjects();
+      List<Subject> subjectsToSearch = [];
+      
+      if (_cachedSubjects != null) {
+        subjectsToSearch = _cachedSubjects!;
+      } else {
+        final storage = SubjectStorage();
+        subjectsToSearch = await storage.loadSubjects();
+        _cachedSubjects = subjectsToSearch; 
+      }
+      
       Subject? subject;
       try {
-        subject = subjects.firstWhere((s) => s.id == courseId);
+        // MUDANÇA: Procura tanto pelo ID (UUID) quanto pelo CÓDIGO (ex: "FIS101")
+        // Isso atende sua sugestão e torna a busca mais robusta.
+        subject = subjectsToSearch.firstWhere(
+          (s) => s.id == courseId || s.code == courseId
+        );
       } catch (e) {
         subject = null; // Não encontrou
       }
@@ -150,18 +155,18 @@ class ApiClient {
       Map<String, dynamic> base;
 
       if (subject != null) {
-        // Encontrou a matéria no SubjectStorage. Cria um "base payload" com ela.
+        // MUDANÇA: Encontrou a matéria! Usa os campos corretos (name, code).
         base = {
           "id": subject.id,
-          // "code": subject.room ?? "SALA-??",
+          "code": subject.code, // <-- Corrigido (usava subject.room)
           "title": subject.name,
-          // "description": subject.professor ?? "Sem professor",
-          "materials": [], // Lista vazia, será preenchida pelo JSON
-          "assignments": [], // Lista vazia, será preenchida pelo JSON
-          "grades": [], // Lista vazia, será preenchida pelo JSON
+          "description": "Detalhes da matéria ${subject.name} (Código: ${subject.code})", // <-- Corrigido
+          "materials": [], 
+          "assignments": [],
+          "grades": [],
         };
       } else if (courseId == 'c1') {
-         // Fallback para as matérias base (caso não estejam no SubjectStorage)
+         // Fallback para as matérias base (Cálculo)
          base = {
             "id": "c1", "code": "MAT101", "title": "Cálculo I (Base)",
             "description": "Disciplina exemplo.",
@@ -169,7 +174,7 @@ class ApiClient {
             "assignments": [], "grades": []
          };
       } else if (courseId == 'c2') {
-         // Fallback para as matérias base
+         // Fallback para as matérias base (Programação)
          base = {
             "id": "c2", "code": "PROG202", "title": "Programação II (Base)",
             "description": "Disciplina exemplo.",
@@ -177,21 +182,20 @@ class ApiClient {
             "assignments": [], "grades": []
          };
       } else {
-        // Não encontrou em lugar nenhum. Retorna uma página de erro.
+        // Fallback genérico (o que você estava vendo antes)
         base = {
           "id": courseId,
           "code": "404",
-          "title": "Matéria não encontrada",
-          "description": "A matéria com ID $courseId não foi encontrada no SubjectStorage.",
+          "title": "Matéria não encontrada ($courseId)",
+          "description": "Não foi possível carregar os detalhes do SubjectStorage.",
           "materials": [],
           "assignments": [],
           "grades": [],
         };
       }
 
-      // O RESTANTE DA LÓGICA É IDÊNTICA.
-      // Ela mescla os dados do JSON (atividades/notas salvas) com os dados base
-      // que acabamos de carregar dinamicamente.
+      // LÓGICA DE MERGE (igual a antes, sem mudanças)
+      // Pega a 'base' que definimos acima e mescla com o JSON salvo.
       try {
         final stored = await JsonStorage.instance.readCourseData(courseId);
         
@@ -228,8 +232,9 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _fakePost(String path, dynamic data) async {
-    // POST /courses/{id}/assignments -> create assignment and persist
-    // NENHUMA MUDANÇA AQUI, JÁ ESTAVA CORRETO
+    // Nenhuma mudança necessária aqui. O POST já estava correto.
+    
+    // POST /courses/{id}/assignments
     if (path.contains('/courses/') && path.contains('/assignments')) {
       final parts = path.split('/');
       final courseId = parts[2];
@@ -243,13 +248,17 @@ class ApiClient {
         'weight': (data['weight'] ?? 1.0).toDouble(),
         'createdAt': now.toIso8601String(),
       };
-
-      await JsonStorage.instance.appendAssignment(courseId, assignment);
+      
+      // MUDANÇA: Garante que o JsonStorage use o ID correto
+      // Se o app navegou com o código (ex: "FIS101"), precisamos encontrar o ID (UUID)
+      // para salvar o JSON no arquivo certo (ex: "course_ea9190....json")
+      final subjectId = await _findSubjectId(courseId);
+      await JsonStorage.instance.appendAssignment(subjectId, assignment);
+      
       return assignment;
     }
 
-    // POST /courses/{id}/grades -> persist grade
-    // NENHUMA MUDANÇA AQUI, JÁ ESTAVA CORRETO
+    // POST /courses/{id}/grades
     if (path.contains('/courses/') && path.contains('/grades')) {
       final parts = path.split('/');
       final courseId = parts[2];
@@ -272,11 +281,47 @@ class ApiClient {
         'score': (data['score'] is num) ? (data['score'] as num).toDouble() : double.tryParse('${data['score']}') ?? 0.0,
         'createdAt': DateTime.now().toIso8601String(),
       };
-      await JsonStorage.instance.appendGrade(courseId, grade);
+
+      // MUDANÇA: Garante que o JsonStorage use o ID correto
+      final subjectId = await _findSubjectId(courseId);
+      await JsonStorage.instance.appendGrade(subjectId, grade);
+      
       return {'ok': true, 'saved': grade};
     }
 
     // default: return given payload
     return {"ok": true, "payload": data ?? {}};
   }
+
+  // MUDANÇA: Nova função helper para encontrar o ID (UUID) de uma matéria
+  // Isso é crucial se o app navegar usando o CÓDIGO (ex: "FIS101")
+  // O JsonStorage SEMPRE deve salvar usando o ID (UUID).
+  Future<String> _findSubjectId(String courseIdOrCode) async {
+    // Se o ID já for um dos "base" (c1, c2), retorne ele mesmo.
+    if (courseIdOrCode == 'c1' || courseIdOrCode == 'c2') return courseIdOrCode;
+
+    List<Subject> subjectsToSearch = [];
+    if (_cachedSubjects != null) {
+      subjectsToSearch = _cachedSubjects!;
+    } else {
+      final storage = SubjectStorage();
+      subjectsToSearch = await storage.loadSubjects();
+      _cachedSubjects = subjectsToSearch;
+    }
+
+    try {
+      // Tenta encontrar a matéria pelo ID ou CÓDIGO
+      final subject = subjectsToSearch.firstWhere(
+        (s) => s.id == courseIdOrCode || s.code == courseIdOrCode
+      );
+      // Retorna o ID (UUID) verdadeiro da matéria
+      return subject.id; 
+    } catch(e) {
+      // Se não encontrar, retorna o ID/Código original.
+      // Isso vai criar um arquivo .json (ex: course_FIS101.json),
+      // o que não é ideal, mas impede o app de quebrar.
+      return courseIdOrCode;
+    }
+  }
+
 }
