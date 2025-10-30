@@ -7,9 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/courses_provider.dart';
 import '../ui/widgets/course_card.dart';
-import '../providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'create_course_page.dart';
+import '../models/subject.dart';
+import '../services/subject_storage.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -67,15 +68,22 @@ class _HomePageState extends ConsumerState<HomePage> {
           : UniqueKey().toString();
       result['id'] = id;
 
-      // adiciona à lista local e persiste
-      setState(() {
-        _localCourses.add(result);
-      });
-      await _saveLocalCourses();
+      // NOVO: também persiste a matéria no SubjectStorage (fonte usada pela API fake)
+      final storage = SubjectStorage();
+      final subject = Subject(
+        id: id,
+        name: (result['name'] ?? '').toString(),
+        code: (result['code'] ?? '').toString(),
+      );
+      await storage.addSubject(subject);
 
-      // navega para a página da matéria recém-criada
+      // Opcional: manter lista local antiga sincronizada removendo duplicidade
+      // Aqui escolhemos não adicionar mais em _localCourses para evitar duplicações,
+      // pois a lista do provider já virá do SubjectStorage.
+
+      // força atualização da lista principal
       if (mounted) {
-        // usa GoRouter para navegar para a rota /course/:id
+        final _ = ref.refresh(coursesListProvider);
         context.push('/course/$id');
       }
     }
@@ -92,7 +100,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final coursesAsync = ref.watch(coursesListProvider);
-    final authSvc = ref.watch(authServiceProvider);
 
     return Scaffold(
       appBar: AppBar(
