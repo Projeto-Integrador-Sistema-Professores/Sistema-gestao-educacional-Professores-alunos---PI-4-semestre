@@ -4,6 +4,7 @@ import '../utils/constants.dart';
 import 'json_storage.dart';
 import 'subject_storage.dart';
 import '../models/subject.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
   final Dio dio;
@@ -44,6 +45,18 @@ class ApiClient {
       );
     }
     return dio.post(path, data: data);
+  }
+
+  Future<Response> delete(String path) async {
+    if (useFakeApi) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        statusCode: 200,
+        data: await _fakeDelete(path),
+      );
+    }
+    return dio.delete(path);
   }
 
   // --- helpers for fake mode that now persist to JSON ---
@@ -98,22 +111,30 @@ class ApiClient {
         };
       }).toList();
 
-      // Adiciona as matérias "base" se não estiverem no storage
+      // Lê base deletadas
+      final prefs = await SharedPreferences.getInstance();
+      final deletedBase = prefs.getStringList('_deleted_base_courses') ?? <String>[];
+
+      // Adiciona as matérias "base" se não estiverem no storage e não estiverem deletadas
       if (items.indexWhere((item) => item['id'] == 'c1') == -1) {
-        items.insert(0, {
-            "id": "c1",
-            "code": "MAT101",
-            "title": "Cálculo I (Base)",
-            "description": "Fundamentos de cálculo diferencial e integral."
-          });
+        if (!deletedBase.contains('c1')) {
+          items.insert(0, {
+              "id": "c1",
+              "code": "MAT101",
+              "title": "Cálculo I (Base)",
+              "description": "Fundamentos de cálculo diferencial e integral."
+            });
+        }
       }
        if (items.indexWhere((item) => item['id'] == 'c2') == -1) {
-        items.insert(1, {
-            "id": "c2",
-            "code": "PROG202",
-            "title": "Programação II (Base)",
-            "description": "Estruturas de dados e algoritmos."
-          });
+        if (!deletedBase.contains('c2')) {
+          items.insert(1, {
+              "id": "c2",
+              "code": "PROG202",
+              "title": "Programação II (Base)",
+              "description": "Estruturas de dados e algoritmos."
+            });
+        }
       }
 
       return {"items": items};
@@ -130,6 +151,23 @@ class ApiClient {
     if (path.contains('/courses/')) {
       final parts = path.split('/');
       final courseId = parts[2];
+
+      // Se base foi deletada, retorna não encontrado
+      if (courseId == 'c1' || courseId == 'c2') {
+        final prefs = await SharedPreferences.getInstance();
+        final deletedBase = prefs.getStringList('_deleted_base_courses') ?? <String>[];
+        if (deletedBase.contains(courseId)) {
+          return {
+            "id": courseId,
+            "code": "404",
+            "title": "Matéria não encontrada ($courseId)",
+            "description": "Removida pelo usuário.",
+            "materials": [],
+            "assignments": [],
+            "grades": [],
+          };
+        }
+      }
 
       List<Subject> subjectsToSearch = [];
       
@@ -291,6 +329,38 @@ class ApiClient {
 
     // default: return given payload
     return {"ok": true, "payload": data ?? {}};
+  }
+
+  Future<Map<String, dynamic>> _fakeDelete(String path) async {
+    // DELETE /courses/{id}
+    if (path.startsWith('/courses/')) {
+      final parts = path.split('/');
+      final courseId = parts[2];
+
+      if (courseId == 'c1' || courseId == 'c2') {
+        // marca como deletado nas bases
+        final prefs = await SharedPreferences.getInstance();
+        final list = prefs.getStringList('_deleted_base_courses') ?? <String>[];
+        if (!list.contains(courseId)) list.add(courseId);
+        await prefs.setStringList('_deleted_base_courses', list);
+        return {"ok": true, "deleted": courseId};
+      }
+
+      // remove do SubjectStorage
+      final storage = SubjectStorage();
+      await storage.removeSubject(courseId);
+
+      // também limpa cache e dados persistidos de assignments/grades
+      try {
+        await JsonStorage.instance.clearCourse(courseId);
+      } catch (_) {}
+
+      // invalida cache local
+      _cachedSubjects = null;
+      return {"ok": true, "deleted": courseId};
+    }
+
+    return {"ok": false};
   }
 
   // MUDANÇA: Nova função helper para encontrar o ID (UUID) de uma matéria

@@ -125,7 +125,40 @@ class _HomePageState extends ConsumerState<HomePage> {
               if (idx < list.length) {
                 // matéria vinda do provider -> usa CourseCard (comportamento anterior)
                 final course = list[idx];
-                return CourseCard(course: course);
+                return CourseCard(
+                  course: course,
+                  onDelete: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Excluir matéria'),
+                        content: Text('Deseja excluir "${course.title}"?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+                          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
+
+                    final delete = ref.read(deleteCourseProvider);
+                    final ok = await delete(course.id);
+                    if (ok) {
+                      if (mounted) {
+                        final _ = ref.refresh(coursesListProvider);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Matéria excluída')),
+                        );
+                      }
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Falha ao excluir')),
+                        );
+                      }
+                    }
+                  },
+                );
               } else {
                 // matérias locais -> mostramos com um Card simples
                 final localIdx = idx - list.length;

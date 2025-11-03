@@ -59,4 +59,13 @@ class JsonStorage {
     data['grades'] = grades;
     await writeCourseData(courseId, data);
   }
+
+  Future<void> clearCourse(String courseId) async {
+    try {
+      final f = await _courseFile(courseId);
+      if (await f.exists()) {
+        await f.delete();
+      }
+    } catch (_) {}
+  }
 }

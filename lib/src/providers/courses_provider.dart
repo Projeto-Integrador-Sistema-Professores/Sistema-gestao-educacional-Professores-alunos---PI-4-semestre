@@ -56,3 +56,11 @@ final createAssignmentProvider = Provider((ref) {
     );
   };
 });
+
+// NEW: delete course action
+final deleteCourseProvider = Provider((ref) {
+  final svc = ref.watch(courseServiceProvider);
+  return (String courseId) async {
+    return svc.deleteCourse(courseId);
+  };
+});

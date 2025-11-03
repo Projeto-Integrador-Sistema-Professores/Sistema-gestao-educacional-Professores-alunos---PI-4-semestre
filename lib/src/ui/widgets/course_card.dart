@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 
 class CourseCard extends StatelessWidget {
   final Course course;
-  const CourseCard({required this.course, super.key});
+  final VoidCallback? onDelete;
+  const CourseCard({required this.course, this.onDelete, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +14,19 @@ class CourseCard extends StatelessWidget {
       child: ListTile(
         title: Text(course.title),
         subtitle: Text(course.code),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: PopupMenuButton<String>(
+          onSelected: (v) {
+            if (v == 'open') {
+              context.push('/course/${course.id}');
+            } else if (v == 'delete') {
+              onDelete?.call();
+            }
+          },
+          itemBuilder: (ctx) => const [
+            PopupMenuItem(value: 'open', child: Text('Abrir')),
+            PopupMenuItem(value: 'delete', child: Text('Excluir')),
+          ],
+        ),
         onTap: () {
           context.push('/course/${course.id}');
         },
