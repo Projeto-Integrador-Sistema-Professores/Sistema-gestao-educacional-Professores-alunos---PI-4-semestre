@@ -5,6 +5,7 @@ import 'json_storage.dart';
 import 'subject_storage.dart';
 import '../models/subject.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'student_storage.dart';
 
 class ApiClient {
   final Dio dio;
@@ -83,6 +84,32 @@ class ApiClient {
 
 
   Future<Map<String, dynamic>> _fakeGet(String path) async {
+    // /students (lista global)
+    if (path == '/students') {
+      final storage = StudentStorage();
+      final students = await storage.loadStudents();
+      final enrollments = await storage.loadEnrollments();
+
+      // carrega subjects para resolver nomes
+      final subjStorage = SubjectStorage();
+      final subjects = await subjStorage.loadSubjects();
+      final subjectMap = {for (var s in subjects) s.id: s};
+
+      final items = students.map((s) {
+        final sid = (s['id'] ?? '').toString();
+        final enrolled = enrollments[sid] ?? const <String>[];
+        final subjectNames = enrolled.map((id) => subjectMap[id]?.name ?? id).toList();
+        return {
+          'id': s['id'],
+          'name': s['name'],
+          'ra': s['ra'],
+          'role': 'student',
+          'subjects': subjectNames,
+        };
+      }).toList();
+
+      return {'items': items};
+    }
     // /auth/me
     if (path == '/auth/me') {
       return {
@@ -270,6 +297,13 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _fakePost(String path, dynamic data) async {
+    // POST /students (criar aluno)
+    if (path == '/students') {
+      final storage = StudentStorage();
+      final payload = Map<String, dynamic>.from(data as Map);
+      await storage.addStudent(payload);
+      return {'ok': true, 'student': payload};
+    }
     // Nenhuma mudança necessária aqui. O POST já estava correto.
     
     // POST /courses/{id}/assignments

@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_client.dart';
 import '../services/course_service.dart';
+import '../services/student_service.dart';
 import '../models/course.dart';
 import '../models/user.dart';
 
@@ -12,6 +13,11 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 final courseServiceProvider = Provider<CourseService>((ref) {
   final client = ref.watch(apiClientProvider);
   return CourseService(client);
+});
+
+final studentServiceProvider = Provider<StudentService>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return StudentService(client);
 });
 
 final coursesListProvider = FutureProvider<List<Course>>((ref) async {
@@ -54,6 +60,19 @@ final createAssignmentProvider = Provider((ref) {
       dueDate: dueDate,
       weight: weight,
     );
+  };
+});
+
+// Students (globais)
+final allStudentsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final svc = ref.watch(studentServiceProvider);
+  return svc.listAllWithSubjects();
+});
+
+final createStudentProvider = Provider((ref) {
+  final svc = ref.watch(studentServiceProvider);
+  return (String name, String ra) async {
+    return svc.createStudent(name: name, ra: ra);
   };
 });
 

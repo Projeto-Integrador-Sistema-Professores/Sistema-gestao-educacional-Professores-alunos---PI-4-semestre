@@ -135,9 +135,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 title: const Text('Alunos'),
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Alunos: em breve')),
-                  );
+                  context.go('/students');
                 },
               ),
               ListTile(
