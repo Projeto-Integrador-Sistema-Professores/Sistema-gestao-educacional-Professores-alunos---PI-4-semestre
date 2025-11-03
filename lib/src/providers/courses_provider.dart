@@ -76,6 +76,13 @@ final createStudentProvider = Provider((ref) {
   };
 });
 
+final updateStudentEnrollmentsProvider = Provider((ref) {
+  final svc = ref.watch(studentServiceProvider);
+  return (String studentId, List<String> subjectIds) async {
+    return svc.updateEnrollments(studentId: studentId, subjectIds: subjectIds);
+  };
+});
+
 // NEW: delete course action
 final deleteCourseProvider = Provider((ref) {
   final svc = ref.watch(courseServiceProvider);

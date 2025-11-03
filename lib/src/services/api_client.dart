@@ -48,6 +48,18 @@ class ApiClient {
     return dio.post(path, data: data);
   }
 
+  Future<Response> put(String path, {dynamic data}) async {
+    if (useFakeApi) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        statusCode: 200,
+        data: await _fakePut(path, data),
+      );
+    }
+    return dio.put(path, data: data);
+  }
+
   Future<Response> delete(String path) async {
     if (useFakeApi) {
       await Future.delayed(const Duration(milliseconds: 200));
@@ -105,6 +117,7 @@ class ApiClient {
           'ra': s['ra'],
           'role': 'student',
           'subjects': subjectNames,
+          'subjectIds': enrolled,
         };
       }).toList();
 
@@ -363,6 +376,24 @@ class ApiClient {
 
     // default: return given payload
     return {"ok": true, "payload": data ?? {}};
+  }
+
+  Future<Map<String, dynamic>> _fakePut(String path, dynamic data) async {
+    // PUT /students/{id}/enrollments
+    if (path.startsWith('/students/') && path.endsWith('/enrollments')) {
+      final parts = path.split('/');
+      final studentId = parts[2];
+      final payload = Map<String, dynamic>.from(data as Map);
+      final subjects = (payload['subjects'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? <String>[];
+
+      final storage = StudentStorage();
+      final enrollments = await storage.loadEnrollments();
+      enrollments[studentId] = subjects;
+      await storage.saveEnrollments(enrollments);
+      return {'ok': true, 'studentId': studentId, 'subjects': subjects};
+    }
+
+    return {'ok': false};
   }
 
   Future<Map<String, dynamic>> _fakeDelete(String path) async {

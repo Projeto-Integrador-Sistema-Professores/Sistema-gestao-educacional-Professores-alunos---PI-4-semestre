@@ -24,11 +24,29 @@ class AllStudentsPage extends ConsumerWidget {
             itemBuilder: (ctx, i) {
               final s = items[i];
               final subjects = (s['subjects'] as List).cast<String>();
+              final subjectIds = (s['subjectIds'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
               return ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.person)),
                 title: Text(s['name'] ?? ''),
                 subtitle: Text('RA: ${s['ra'] ?? ''}\n${subjects.isEmpty ? 'Sem matérias' : 'Matérias: ' + subjects.join(', ')}'),
                 isThreeLine: true,
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: 'Editar matérias',
+                  onPressed: () async {
+                    final updated = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => _EditEnrollmentsDialog(
+                        studentId: (s['id'] ?? '').toString(),
+                        initialSubjectIds: subjectIds,
+                      ),
+                    );
+                    if (updated == true) {
+                      // ignore: unused_local_variable
+                      final _ = ref.refresh(allStudentsProvider);
+                    }
+                  },
+                ),
               );
             },
           );
@@ -111,6 +129,88 @@ class _CreateStudentDialogState extends ConsumerState<_CreateStudentDialog> {
                   if (mounted) {
                     setState(() => _saving = false);
                     Navigator.pop(context, true);
+                  }
+                },
+          child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Salvar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditEnrollmentsDialog extends ConsumerStatefulWidget {
+  final String studentId;
+  final List<String> initialSubjectIds;
+  const _EditEnrollmentsDialog({required this.studentId, required this.initialSubjectIds});
+
+  @override
+  ConsumerState<_EditEnrollmentsDialog> createState() => _EditEnrollmentsDialogState();
+}
+
+class _EditEnrollmentsDialogState extends ConsumerState<_EditEnrollmentsDialog> {
+  late List<String> _selected;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = List<String>.from(widget.initialSubjectIds);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final coursesAsync = ref.watch(coursesListProvider);
+    return AlertDialog(
+      title: const Text('Editar matérias'),
+      content: SizedBox(
+        width: 420,
+        child: coursesAsync.when(
+          loading: () => const SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
+          error: (e, s) => Text('Erro: $e'),
+          data: (courses) {
+            return SizedBox(
+              height: 320,
+              width: 420,
+              child: ListView.builder(
+                itemCount: courses.length,
+                itemBuilder: (ctx, i) {
+                  final c = courses[i];
+                  final checked = _selected.contains(c.id);
+                  return CheckboxListTile(
+                    value: checked,
+                    title: Text(c.title),
+                    subtitle: Text(c.code),
+                    onChanged: (v) {
+                      setState(() {
+                        if (v == true) {
+                          if (!_selected.contains(c.id)) _selected.add(c.id);
+                        } else {
+                          _selected.remove(c.id);
+                        }
+                      });
+                    },
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: _saving
+              ? null
+              : () async {
+                  setState(() => _saving = true);
+                  final update = ref.read(updateStudentEnrollmentsProvider);
+                  final ok = await update(widget.studentId, _selected);
+                  if (mounted) {
+                    setState(() => _saving = false);
+                    Navigator.pop(context, ok == true);
                   }
                 },
           child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Salvar'),

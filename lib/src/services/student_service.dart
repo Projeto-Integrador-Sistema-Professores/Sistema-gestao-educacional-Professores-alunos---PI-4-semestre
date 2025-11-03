@@ -23,6 +23,14 @@ class StudentService {
     await client.post('/students', data: payload);
     return User(id: id, name: name, ra: ra, role: 'student');
   }
+
+  Future<bool> updateEnrollments({required String studentId, required List<String> subjectIds}) async {
+    final payload = {
+      'subjects': subjectIds,
+    };
+    final res = await client.put('/students/$studentId/enrollments', data: payload);
+    return (res.data is Map && res.data['ok'] == true);
+  }
 }
 
 
