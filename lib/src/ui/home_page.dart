@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/courses_provider.dart';
 import '../ui/widgets/course_card.dart';
+import '../providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'create_course_page.dart';
 import '../models/subject.dart';
@@ -104,6 +105,75 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Minhas Matérias'),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+      ),
+      drawer: Drawer(
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('Navegação', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.book_outlined),
+                title: const Text('Matérias'),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.go('/home');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.group_outlined),
+                title: const Text('Alunos'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Alunos: em breve')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.chat_bubble_outline),
+                title: const Text('Mensagens'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Mensagens: em breve')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings_outlined),
+                title: const Text('Configuração'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Configuração: em breve')),
+                  );
+                },
+              ),
+              const Spacer(),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('LogOut'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(authStateProvider.notifier).state = AuthState(isAuthenticated: false);
+                  context.go('/');
+                },
+              ),
+            ],
+          ),
+        ),
       ),
       body: coursesAsync.when(
         data: (list) {
