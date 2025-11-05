@@ -6,6 +6,7 @@ import 'subject_storage.dart';
 import '../models/subject.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'student_storage.dart';
+import 'message_storage.dart';
 
 class ApiClient {
   final Dio dio;
@@ -123,6 +124,29 @@ class ApiClient {
 
       return {'items': items};
     }
+
+    // /messages
+    if (path.startsWith('/messages')) {
+      final storage = MessageStorage();
+      
+      // Se tem query param studentId, filtra
+      if (path.contains('?')) {
+        try {
+          final uri = Uri.parse('http://fake$path');
+          final studentId = uri.queryParameters['studentId'];
+          if (studentId != null && studentId.isNotEmpty) {
+            final filtered = await storage.getMessagesForStudent(studentId);
+            return {'items': filtered};
+          }
+        } catch (_) {
+          // Se falhar o parse, continua com todas as mensagens
+        }
+      }
+      
+      final allMessages = await storage.loadMessages();
+      return {'items': allMessages};
+    }
+
     // /auth/me
     if (path == '/auth/me') {
       return {
@@ -347,6 +371,14 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _fakePost(String path, dynamic data) async {
+    // POST /messages (enviar mensagem)
+    if (path == '/messages') {
+      final storage = MessageStorage();
+      final payload = Map<String, dynamic>.from(data as Map);
+      await storage.addMessage(payload);
+      return {'ok': true, 'message': payload};
+    }
+
     // POST /students (criar aluno)
     if (path == '/students') {
       final storage = StudentStorage();

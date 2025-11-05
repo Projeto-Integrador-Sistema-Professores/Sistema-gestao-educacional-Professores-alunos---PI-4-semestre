@@ -51,9 +51,7 @@ class AllStudentsPage extends ConsumerWidget {
                 title: const Text('Mensagens'),
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Mensagens: em breve')),
-                  );
+                  context.go('/messages');
                 },
               ),
               ListTile(

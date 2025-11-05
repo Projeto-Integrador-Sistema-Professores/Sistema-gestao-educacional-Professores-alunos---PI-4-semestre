@@ -9,6 +9,7 @@ import 'ui/grade_launch_page.dart';
 import 'ui/create_assignment_page.dart';
 import 'providers/auth_provider.dart';
 import 'ui/all_students_page.dart';
+import 'ui/messages_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authStateProvider);
@@ -29,6 +30,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/students',
         name: 'students_all',
         builder: (context, state) => const AllStudentsPage(),
+      ),
+      GoRoute(
+        path: '/messages',
+        name: 'messages',
+        builder: (context, state) => const MessagesPage(),
       ),
       GoRoute(
         path: '/course/:id',
