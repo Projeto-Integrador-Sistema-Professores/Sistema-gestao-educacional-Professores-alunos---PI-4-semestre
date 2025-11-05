@@ -26,7 +26,8 @@ class CoursePage extends ConsumerWidget {
             tooltip: 'Atualizar',
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              ref.refresh(courseDetailProvider(courseId));
+              final _ = ref.refresh(courseDetailProvider(courseId));
+              final __ = ref.refresh(studentsListProvider(courseId));
             },
           ),
         ],
@@ -99,49 +100,10 @@ class CoursePage extends ConsumerWidget {
                               ),
 
                               // Alunos
-                              Column(
-                                children: [
-                                  Expanded(
-                                    child: ListView.builder(
-                                      itemCount: grades.length,
-                                      itemBuilder: (ctx, i) {
-                                        final g = grades[i] is Map
-                                            ? Map<String, dynamic>.from(grades[i])
-                                            : grades[i];
-                                        final studentName = (g is Map)
-                                            ? (g['studentName'] ?? g['studentId'])
-                                            : (g.studentName ?? g.studentId);
-                                        final finalGrade = (g is Map)
-                                            ? (g['finalGrade'] ?? g['score'] ?? '-')
-                                            : (g.finalGrade ?? g.score ?? '-');
-                                        final studentId = (g is Map)
-                                            ? (g['studentId'] ?? '')
-                                            : (g.studentId ?? '');
-
-                                        return ListTile(
-                                          title: Text('$studentName'),
-                                          subtitle: Text('Média: $finalGrade'),
-                                          trailing: IconButton(
-                                            icon: const Icon(Icons.edit),
-                                            onPressed: () {
-                                              final firstAssignmentId =
-                                                  (assignments.isNotEmpty && assignments[0] is Map)
-                                                      ? (assignments[0]['id'] ?? '')
-                                                      : '';
-                                              context.push(
-                                                  '/course/$courseId/grade?studentId=$studentId&assignmentId=$firstAssignmentId');
-                                            },
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  ElevatedButton.icon(
-                                    onPressed: () => context.push('/course/$courseId/students'),
-                                    icon: const Icon(Icons.group),
-                                    label: const Text('Ver lista completa de alunos'),
-                                  ),
-                                ],
+                              _StudentsTab(
+                                courseId: courseId,
+                                assignments: assignments,
+                                grades: grades,
                               ),
                             ],
                           ),
@@ -159,6 +121,104 @@ class CoursePage extends ConsumerWidget {
   }
 }
 
-extension on Alignment {
-  get id => null;
+class _StudentsTab extends ConsumerWidget {
+  final String courseId;
+  final List assignments;
+  final List grades;
+
+  const _StudentsTab({
+    required this.courseId,
+    required this.assignments,
+    required this.grades,
+  });
+
+  double _calculateAverage(String studentId, List assignments, List grades) {
+    final studentGrades = grades.where((g) {
+      final gId = (g is Map) ? (g['studentId'] ?? '') : (g.studentId ?? '');
+      return gId == studentId;
+    }).toList();
+
+    if (studentGrades.isEmpty || assignments.isEmpty) return 0.0;
+
+    double totalWeight = 0.0;
+    double weightedSum = 0.0;
+
+    for (final assignment in assignments) {
+      final assignmentId = (assignment is Map) ? (assignment['id'] ?? '') : (assignment.id ?? '');
+      final weight = (assignment is Map) 
+          ? ((assignment['weight'] ?? 0.0) as num).toDouble()
+          : (assignment.weight ?? 0.0);
+
+      final gradeOpt = studentGrades.where((g) {
+        final gAssignmentId = (g is Map) ? (g['assignmentId'] ?? '') : (g.assignmentId ?? '');
+        return gAssignmentId == assignmentId;
+      });
+
+      if (gradeOpt.isNotEmpty) {
+        final grade = gradeOpt.first;
+        final score = (grade is Map)
+            ? ((grade['score'] ?? grade['finalGrade'] ?? 0.0) as num).toDouble()
+            : (grade.score ?? grade.finalGrade ?? 0.0);
+        if (score > 0) {
+          weightedSum += score * weight;
+          totalWeight += weight;
+        }
+      }
+    }
+
+    return totalWeight > 0 ? weightedSum / totalWeight : 0.0;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final studentsAsync = ref.watch(studentsListProvider(courseId));
+
+    return studentsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Erro ao carregar alunos: $e')),
+      data: (studentsList) {
+        if (studentsList.isEmpty) {
+          return const Center(child: Text('Nenhum aluno cadastrado nesta matéria.'));
+        }
+
+        return Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                itemCount: studentsList.length,
+                itemBuilder: (ctx, i) {
+                  final student = studentsList[i];
+                  final average = _calculateAverage(student.id, assignments, grades);
+                  
+                  return ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.person)),
+                    title: Text(student.name),
+                    subtitle: Text('RA: ${student.ra}\nMédia: ${average.toStringAsFixed(1)}'),
+                    isThreeLine: true,
+                    trailing: IconButton(
+                      icon: const Icon(Icons.edit),
+                      tooltip: 'Lançar nota',
+                      onPressed: () {
+                        final firstAssignmentId =
+                            (assignments.isNotEmpty && assignments[0] is Map)
+                                ? (assignments[0]['id'] ?? '')
+                                : (assignments.isNotEmpty ? assignments[0].id ?? '' : '');
+                        context.push(
+                            '/course/$courseId/grade?studentId=${student.id}&assignmentId=$firstAssignmentId');
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/course/$courseId/students'),
+              icon: const Icon(Icons.group),
+              label: const Text('Ver lista completa de alunos'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }

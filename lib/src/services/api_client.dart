@@ -184,7 +184,44 @@ class ApiClient {
     if (path.contains('/courses/') && path.endsWith('/students')) {
       final parts = path.split('/');
       final courseId = parts[2];
-      return _fakeStudentsDb[courseId] ?? _fakeStudentsDb['default']!;
+      
+      // Busca alunos do StudentStorage que estão matriculados nesta matéria
+      final studentStorage = StudentStorage();
+      final allStudents = await studentStorage.loadStudents();
+      final enrollments = await studentStorage.loadEnrollments();
+      
+      // Resolve o ID real da matéria (pode ser UUID ou código)
+      String resolvedCourseId = courseId;
+      if (courseId != 'c1' && courseId != 'c2') {
+        // Tenta encontrar pelo código ou ID
+        final subjStorage = SubjectStorage();
+        final subjects = await subjStorage.loadSubjects();
+        try {
+          final subject = subjects.firstWhere(
+            (s) => s.id == courseId || s.code == courseId
+          );
+          resolvedCourseId = subject.id;
+        } catch (_) {
+          // Se não encontrar, usa o courseId original
+        }
+      }
+      
+      // Filtra alunos que estão matriculados nesta matéria
+      final enrolledStudents = allStudents.where((student) {
+        final studentId = (student['id'] ?? '').toString();
+        final studentSubjects = enrollments[studentId] ?? <String>[];
+        return studentSubjects.contains(resolvedCourseId);
+      }).toList();
+      
+      // Converte para o formato esperado pelo provider
+      final items = enrolledStudents.map((s) => <String, dynamic>{
+        "id": s['id'],
+        "name": s['name'],
+        "ra": s['ra'],
+        "role": "student",
+      }).toList();
+      
+      return {"items": items};
     }
 
     // /courses/{id}
