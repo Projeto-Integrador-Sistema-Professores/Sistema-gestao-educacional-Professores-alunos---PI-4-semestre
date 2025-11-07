@@ -10,6 +10,9 @@ import 'ui/create_assignment_page.dart';
 import 'providers/auth_provider.dart';
 import 'ui/all_students_page.dart';
 import 'ui/messages_page.dart';
+import 'ui/assignment_detail_page.dart';
+import 'ui/submit_assignment_page.dart';
+import 'models/assignment.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authStateProvider);
@@ -68,6 +71,57 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return CreateAssignmentPage(courseId: id);
+        },
+      ),
+      GoRoute(
+        path: '/course/:courseId/assignment/:assignmentId',
+        name: 'assignment_detail',
+        builder: (context, state) {
+          final courseId = state.pathParameters['courseId']!;
+          final assignmentId = state.pathParameters['assignmentId']!;
+          // Busca assignment dos query params ou cria fallback
+          final title = state.queryParameters['title'] ?? 'Atividade';
+          final description = state.queryParameters['description'] ?? '';
+          final dueDateStr = state.queryParameters['dueDate'];
+          final weightStr = state.queryParameters['weight'] ?? '1.0';
+          
+          DateTime dueDate = DateTime.now();
+          if (dueDateStr != null) {
+            dueDate = DateTime.tryParse(dueDateStr) ?? DateTime.now();
+          }
+          
+          final assignment = Assignment(
+            id: assignmentId,
+            title: title,
+            description: description,
+            dueDate: dueDate,
+            weight: double.tryParse(weightStr) ?? 1.0,
+          );
+          return AssignmentDetailPage(courseId: courseId, assignment: assignment);
+        },
+      ),
+      GoRoute(
+        path: '/course/:courseId/assignment/:assignmentId/submit',
+        name: 'submit_assignment',
+        builder: (context, state) {
+          final courseId = state.pathParameters['courseId']!;
+          final assignmentId = state.pathParameters['assignmentId']!;
+          final studentId = state.queryParameters['studentId'] ?? '';
+          final studentName = state.queryParameters['studentName'];
+          // Similar ao acima - na prática buscaria do provider
+          final assignment = Assignment(
+            id: assignmentId,
+            title: state.queryParameters['title'] ?? 'Atividade',
+            description: state.queryParameters['description'] ?? '',
+            dueDate: DateTime.now(),
+            weight: double.tryParse(state.queryParameters['weight'] ?? '1.0') ?? 1.0,
+          );
+          return SubmitAssignmentPage(
+            courseId: courseId,
+            assignment: assignment,
+            studentId: studentId,
+            studentName: studentName,
+          );
         },
       ),
     ],

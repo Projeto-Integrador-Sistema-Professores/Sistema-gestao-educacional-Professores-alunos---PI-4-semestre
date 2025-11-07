@@ -96,6 +96,7 @@ class CoursePage extends ConsumerWidget {
                                 itemBuilder: (ctx, i) => AssignmentTile(
                                   item: assignments[i],
                                   color: const Color(0xFF1FB1C2), // aplica cor
+                                  courseId: courseId,
                                 ),
                               ),
 

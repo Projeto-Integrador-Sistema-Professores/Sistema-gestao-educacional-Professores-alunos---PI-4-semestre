@@ -1,15 +1,18 @@
 // lib/src/ui/widgets/assignment_tile.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/assignment.dart';
 
 class AssignmentTile extends StatelessWidget {
   final dynamic item;
   final Color color;
+  final String? courseId; // Para navegação
 
   const AssignmentTile({
     required this.item,
     this.color = const Color(0xFFFFFFFF),
+    this.courseId,
     super.key,
   });
 
@@ -54,6 +57,20 @@ class AssignmentTile extends StatelessWidget {
             Text('Peso: ${assignment.weight.toStringAsFixed(1)}'),
           ],
         ),
+        onTap: courseId != null
+            ? () {
+                final uri = Uri(
+                  path: '/course/$courseId/assignment/${assignment.id}',
+                  queryParameters: {
+                    'title': assignment.title,
+                    'description': assignment.description,
+                    'dueDate': assignment.dueDate.toIso8601String(),
+                    'weight': assignment.weight.toString(),
+                  },
+                );
+                context.push(uri.toString());
+              }
+            : null,
       ),
     );
   }

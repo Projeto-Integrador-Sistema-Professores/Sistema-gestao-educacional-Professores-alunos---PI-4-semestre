@@ -7,6 +7,7 @@ import '../models/subject.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'student_storage.dart';
 import 'message_storage.dart';
+import 'submission_storage.dart';
 
 class ApiClient {
   final Dio dio;
@@ -145,6 +146,15 @@ class ApiClient {
       
       final allMessages = await storage.loadMessages();
       return {'items': allMessages};
+    }
+
+    // /assignments/{id}/submissions
+    if (path.contains('/assignments/') && path.endsWith('/submissions')) {
+      final parts = path.split('/');
+      final assignmentId = parts[2];
+      final storage = SubmissionStorage();
+      final submissions = await storage.getSubmissionsForAssignment(assignmentId);
+      return {'items': submissions};
     }
 
     // /auth/me
@@ -371,6 +381,14 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _fakePost(String path, dynamic data) async {
+    // POST /assignments/{id}/submissions
+    if (path.contains('/assignments/') && path.contains('/submissions')) {
+      final storage = SubmissionStorage();
+      final payload = Map<String, dynamic>.from(data as Map);
+      await storage.addSubmission(payload);
+      return {'ok': true, 'submission': payload};
+    }
+
     // POST /messages (enviar mensagem)
     if (path == '/messages') {
       final storage = MessageStorage();
