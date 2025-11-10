@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../providers/courses_provider.dart';
 import '../models/assignment.dart';
 import '../models/submission.dart';
@@ -267,6 +269,7 @@ class _SubmitFormTabState extends ConsumerState<_SubmitFormTab> {
   final _notesCtrl = TextEditingController();
   String? _selectedFileName;
   String? _selectedFilePath;
+  String? _selectedFileData; // Base64 para web
   String? _selectedStudentId;
   String? _selectedStudentName;
   bool _saving = false;
@@ -280,14 +283,31 @@ class _SubmitFormTabState extends ConsumerState<_SubmitFormTab> {
   Future<void> _pickFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'],
         allowMultiple: false,
+        withData: kIsWeb, // Na web, precisamos dos bytes
       );
 
-      if (result != null && result.files.single.path != null) {
+      if (result != null && result.files.single.name.isNotEmpty) {
+        final file = result.files.single;
         setState(() {
-          _selectedFileName = result.files.single.name;
-          _selectedFilePath = result.files.single.path;
+          _selectedFileName = file.name;
+          
+          if (kIsWeb) {
+            // Na web, usa bytes e converte para base64
+            if (file.bytes != null) {
+              _selectedFileData = base64Encode(file.bytes!);
+              _selectedFilePath = null;
+            } else {
+              _selectedFileName = null;
+              _selectedFileData = null;
+            }
+          } else {
+            // Em mobile/desktop, usa path
+            _selectedFilePath = file.path;
+            _selectedFileData = null;
+          }
         });
       }
     } catch (e) {
@@ -323,7 +343,7 @@ class _SubmitFormTabState extends ConsumerState<_SubmitFormTab> {
         studentId: _selectedStudentId!,
         studentName: _selectedStudentName,
         fileName: _selectedFileName,
-        fileUrl: _selectedFilePath,
+        fileUrl: _selectedFilePath ?? _selectedFileData, // Usa path ou base64
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
 
@@ -335,6 +355,7 @@ class _SubmitFormTabState extends ConsumerState<_SubmitFormTab> {
         setState(() {
           _selectedFileName = null;
           _selectedFilePath = null;
+          _selectedFileData = null;
           _selectedStudentId = null;
           _selectedStudentName = null;
           _notesCtrl.clear();
@@ -425,6 +446,7 @@ class _SubmitFormTabState extends ConsumerState<_SubmitFormTab> {
                 setState(() {
                   _selectedFileName = null;
                   _selectedFilePath = null;
+                  _selectedFileData = null;
                 });
               },
             ),
