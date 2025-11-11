@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 class MaterialTile extends StatelessWidget {
   final dynamic item;
   final Color color;
+  final VoidCallback? onDownload;
 
   const MaterialTile({
     required this.item,
     this.color = const Color(0xFF1FB1C2), // cor turquesa padrão
+    this.onDownload,
     super.key,
   });
 
@@ -33,7 +35,7 @@ class MaterialTile extends StatelessWidget {
         ),
         trailing: IconButton(
           icon: const Icon(Icons.download, color: Colors.white),
-          onPressed: () {
+          onPressed: onDownload ?? () {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Baixar (simulado)')),
             );

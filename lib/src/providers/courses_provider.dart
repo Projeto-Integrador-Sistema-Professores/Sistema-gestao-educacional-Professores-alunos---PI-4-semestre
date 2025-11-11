@@ -5,10 +5,12 @@ import '../services/course_service.dart';
 import '../services/student_service.dart';
 import '../services/message_service.dart';
 import '../services/submission_service.dart';
+import '../services/material_service.dart';
 import '../models/course.dart';
 import '../models/user.dart';
 import '../models/message.dart';
 import '../models/submission.dart';
+import '../models/material_item.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(); // for simplicity; can read token from auth service
@@ -152,5 +154,40 @@ final submitAssignmentProvider = Provider((ref) {
       fileUrl: fileUrl,
       notes: notes,
     );
+  };
+});
+
+// Materials
+final materialServiceProvider = Provider<MaterialService>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return MaterialService(client);
+});
+
+final materialsProvider = FutureProvider.family<List<MaterialItem>, String>((ref, courseId) async {
+  final svc = ref.watch(materialServiceProvider);
+  return svc.listMaterials(courseId);
+});
+
+final createMaterialProvider = Provider((ref) {
+  final svc = ref.watch(materialServiceProvider);
+  return ({
+    required String courseId,
+    required String title,
+    required String fileName,
+    String? fileData,
+  }) async {
+    return svc.createMaterial(
+      courseId: courseId,
+      title: title,
+      fileName: fileName,
+      fileData: fileData,
+    );
+  };
+});
+
+final downloadMaterialProvider = Provider((ref) {
+  final svc = ref.watch(materialServiceProvider);
+  return (String materialId) async {
+    return svc.downloadMaterial(materialId);
   };
 });

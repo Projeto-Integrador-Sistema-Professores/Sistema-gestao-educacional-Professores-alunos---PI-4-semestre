@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'student_storage.dart';
 import 'message_storage.dart';
 import 'submission_storage.dart';
+import 'material_storage.dart';
 
 class ApiClient {
   final Dio dio;
@@ -343,6 +344,11 @@ class ApiClient {
         };
       }
 
+      // Busca materiais do MaterialStorage
+      final materialStorage = MaterialStorage();
+      final resolvedId = subject != null ? subject.id : courseId;
+      final courseMaterials = await materialStorage.getMaterialsForCourse(resolvedId);
+      
       // LÓGICA DE MERGE (igual a antes, sem mudanças)
       // Pega a 'base' que definimos acima e mescla com o JSON salvo.
       try {
@@ -373,6 +379,13 @@ class ApiClient {
         // ignore, use base
       }
 
+      // Mescla materiais do storage com os da base
+      final baseMaterials = (base['materials'] as List).cast<Map<String, dynamic>>();
+      final allMaterials = <Map<String, dynamic>>[];
+      allMaterials.addAll(baseMaterials);
+      allMaterials.addAll(courseMaterials);
+      base['materials'] = allMaterials;
+
       return base;
     }
 
@@ -381,6 +394,17 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _fakePost(String path, dynamic data) async {
+    // POST /courses/{id}/materials
+    if (path.contains('/courses/') && path.contains('/materials')) {
+      final parts = path.split('/');
+      final courseId = parts[2];
+      final storage = MaterialStorage();
+      final payload = Map<String, dynamic>.from(data as Map);
+      payload['courseId'] = courseId;
+      await storage.addMaterial(payload);
+      return {'ok': true, 'material': payload};
+    }
+
     // POST /assignments/{id}/submissions
     if (path.contains('/assignments/') && path.contains('/submissions')) {
       final storage = SubmissionStorage();
