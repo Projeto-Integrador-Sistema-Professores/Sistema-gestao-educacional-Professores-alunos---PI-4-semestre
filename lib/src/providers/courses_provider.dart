@@ -97,6 +97,18 @@ final deleteCourseProvider = Provider((ref) {
   };
 });
 
+// NEW: create course action
+final createCourseProvider = Provider((ref) {
+  final svc = ref.watch(courseServiceProvider);
+  return ({
+    required String name,
+    required String code,
+    String? description,
+  }) async {
+    return svc.createCourse(name: name, code: code, description: description);
+  };
+});
+
 // Messages
 final messageServiceProvider = Provider<MessageService>((ref) {
   final client = ref.watch(apiClientProvider);

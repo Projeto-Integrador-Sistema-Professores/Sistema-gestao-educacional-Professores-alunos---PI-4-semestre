@@ -19,7 +19,8 @@ class ApiClient {
   factory ApiClient({String? token}) {
     final dio = Dio(BaseOptions(
       baseUrl: apiBaseUrl,
-      connectTimeout: const Duration(seconds: 5),
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
     ));
     if (token != null && token.isNotEmpty) {
       dio.options.headers['Authorization'] = 'Bearer $token';
@@ -36,7 +37,12 @@ class ApiClient {
         data: await _fakeGet(path),
       );
     }
-    return dio.get(path);
+    try {
+      return await dio.get(path);
+    } catch (e) {
+      print('Erro ao fazer GET $path: $e');
+      rethrow;
+    }
   }
 
   Future<Response> post(String path, {dynamic data}) async {

@@ -16,6 +16,20 @@ class CourseService {
     return items.map((e) => Course.fromJson(e)).toList();
   }
 
+  Future<Course> createCourse({
+    required String name,
+    required String code,
+    String? description,
+  }) async {
+    final payload = {
+      'name': name,
+      'code': code,
+      if (description != null) 'description': description,
+    };
+    final res = await client.post('/courses', data: payload);
+    return Course.fromJson(Map<String, dynamic>.from(res.data));
+  }
+
   Future<Map<String, dynamic>> getCourseDetails(String id) async {
     final res = await client.get('/courses/$id');
     final data = res.data;

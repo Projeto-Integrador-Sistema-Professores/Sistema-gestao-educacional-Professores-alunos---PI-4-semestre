@@ -63,29 +63,35 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
 
     if (result != null) {
-      // garante que o objeto tenha um id (caso CreateCoursePage não tenha gerado)
-      final id = (result['id'] != null && result['id'].toString().isNotEmpty)
-          ? result['id'].toString()
-          : UniqueKey().toString();
-      result['id'] = id;
+      try {
+        // Chama a API para criar a matéria no backend
+        final create = ref.read(createCourseProvider);
+        final course = await create(
+          name: (result['name'] ?? '').toString(),
+          code: (result['code'] ?? '').toString(),
+          description: result['description']?.toString(),
+        );
 
-      // NOVO: também persiste a matéria no SubjectStorage (fonte usada pela API fake)
-      final storage = SubjectStorage();
-      final subject = Subject(
-        id: id,
-        name: (result['name'] ?? '').toString(),
-        code: (result['code'] ?? '').toString(),
-      );
-      await storage.addSubject(subject);
+        // Também persiste localmente para compatibilidade (se useFakeApi estiver ativo)
+        final storage = SubjectStorage();
+        final subject = Subject(
+          id: course.id,
+          name: course.title,
+          code: course.code,
+        );
+        await storage.addSubject(subject);
 
-      // Opcional: manter lista local antiga sincronizada removendo duplicidade
-      // Aqui escolhemos não adicionar mais em _localCourses para evitar duplicações,
-      // pois a lista do provider já virá do SubjectStorage.
-
-      // força atualização da lista principal
-      if (mounted) {
-        final _ = ref.refresh(coursesListProvider);
-        context.push('/course/$id');
+        // força atualização da lista principal
+        if (mounted) {
+          ref.refresh(coursesListProvider);
+          context.push('/course/${course.id}');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao criar matéria: $e')),
+          );
+        }
       }
     }
   }
