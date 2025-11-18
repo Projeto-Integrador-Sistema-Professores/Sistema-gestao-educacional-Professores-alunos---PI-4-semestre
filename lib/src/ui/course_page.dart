@@ -243,8 +243,23 @@ class _MaterialsTab extends ConsumerStatefulWidget {
 class _MaterialsTabState extends ConsumerState<_MaterialsTab> {
   Future<void> _downloadMaterial(MaterialItem material) async {
     try {
+      // Usa o fileStorageId se disponível, senão tenta extrair do fileUrl
+      final fileStorageId = material.fileStorageId ?? 
+          (material.fileUrl.contains('/materials/') 
+              ? material.fileUrl.split('/materials/')[1].split('/download')[0]
+              : null);
+      
+      if (fileStorageId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ID do arquivo não encontrado')),
+          );
+        }
+        return;
+      }
+
       final download = ref.read(downloadMaterialProvider);
-      final data = await download(material.id);
+      final data = await download(fileStorageId, fileName: material.fileName);
       
       if (data.isEmpty || data['fileData'] == null) {
         if (mounted) {
@@ -256,17 +271,17 @@ class _MaterialsTabState extends ConsumerState<_MaterialsTab> {
       }
 
       final fileData = data['fileData'] as String;
-      final fileName = data['fileName'] ?? material.title;
+      final fileName = data['fileName'] ?? material.fileName ?? material.title;
 
       if (kIsWeb) {
         // Na web, usa helper para download
         downloadFileWeb(fileData, fileName);
       } else {
         // Em mobile/desktop, salva o arquivo
-        // Por enquanto, apenas mostra mensagem
+        await downloadFileIO(data['bytes'] as List<int>, fileName);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Download iniciado: $fileName')),
+            SnackBar(content: Text('Download concluído: $fileName')),
           );
         }
       }

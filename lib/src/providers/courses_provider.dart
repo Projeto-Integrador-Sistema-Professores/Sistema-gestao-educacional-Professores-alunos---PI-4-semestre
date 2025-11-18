@@ -199,7 +199,7 @@ final createMaterialProvider = Provider((ref) {
 
 final downloadMaterialProvider = Provider((ref) {
   final svc = ref.watch(materialServiceProvider);
-  return (String materialId) async {
-    return svc.downloadMaterial(materialId);
+  return (String fileStorageId, {String? fileName}) async {
+    return svc.downloadMaterial(fileStorageId, fileName: fileName);
   };
 });

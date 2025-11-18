@@ -28,6 +28,28 @@ class ApiClient {
     return ApiClient._(dio);
   }
 
+  // Método para fazer POST com multipart/form-data
+  Future<Response> postMultipart(String path, {required FormData formData}) async {
+    if (useFakeApi) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      // Para fake API, extrai os dados do FormData
+      final title = formData.fields.firstWhere((e) => e.key == 'title', orElse: () => const MapEntry('title', '')).value;
+      final file = formData.files.firstOrNull;
+      final fileName = file?.value.filename ?? 'arquivo';
+      
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        statusCode: 201,
+        data: await _fakePost(path, {
+          'title': title,
+          'fileName': fileName,
+          'fileData': 'fake_base64_data',
+        }),
+      );
+    }
+    return dio.post(path, data: formData);
+  }
+
   Future<Response> get(String path) async {
     if (useFakeApi) {
       await Future.delayed(const Duration(milliseconds: 250));

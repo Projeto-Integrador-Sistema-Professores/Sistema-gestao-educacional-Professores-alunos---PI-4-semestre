@@ -13,3 +13,10 @@ void downloadFileWeb(String fileData, String fileName) {
   html.Url.revokeObjectUrl(url);
 }
 
+// Função stub para web (não usada, mas necessária para compatibilidade)
+Future<void> downloadFileIO(List<int> bytes, String fileName) async {
+  // Na web, usa downloadFileWeb ao invés disso
+  final base64Data = base64Encode(bytes);
+  downloadFileWeb(base64Data, fileName);
+}
+

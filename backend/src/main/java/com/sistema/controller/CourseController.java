@@ -325,6 +325,7 @@ public class CourseController {
             materialData.put("title", material.getTitle());
             materialData.put("fileName", material.getFileName());
             materialData.put("fileUrl", material.getFileUrl());
+            materialData.put("fileStorageId", material.getFileStorageId());
             response.put("material", materialData);
             
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
