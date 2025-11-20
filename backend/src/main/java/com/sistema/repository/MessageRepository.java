@@ -11,5 +11,6 @@ public interface MessageRepository extends MongoRepository<Message, String> {
     List<Message> findByTo_IdOrderBySentAtDesc(String toId);
     List<Message> findByFrom_IdOrderBySentAtDesc(String fromId);
     List<Message> findByIsBroadcastTrueOrderBySentAtDesc();
+    List<Message> findAllByOrderBySentAtDesc();
 }
 

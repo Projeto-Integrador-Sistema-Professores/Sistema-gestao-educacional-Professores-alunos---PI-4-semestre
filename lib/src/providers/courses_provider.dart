@@ -1,5 +1,6 @@
 // lib/src/providers/courses_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gestor_alunos/src/providers/auth_provider.dart';
 import '../services/api_client.dart';
 import '../services/course_service.dart';
 import '../services/student_service.dart';
@@ -114,7 +115,8 @@ final createCourseProvider = Provider((ref) {
 // Messages
 final messageServiceProvider = Provider<MessageService>((ref) {
   final client = ref.watch(apiClientProvider);
-  return MessageService(client);
+  final authService = ref.watch(authServiceProvider);
+  return MessageService(client, authService);
 });
 
 final messagesProvider = FutureProvider.family<List<Message>, String?>((ref, studentId) async {

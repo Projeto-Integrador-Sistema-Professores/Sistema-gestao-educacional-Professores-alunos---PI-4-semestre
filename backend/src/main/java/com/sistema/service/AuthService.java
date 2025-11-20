@@ -24,6 +24,27 @@ public class AuthService {
         
         try {
             String token = authHeader.substring(7); // Remove "Bearer "
+            
+            // Verifica tokens demo primeiro
+            if ("demo_teacher_token".equals(token)) {
+                User demoTeacher = new User();
+                demoTeacher.setId("demo_teacher_1");
+                demoTeacher.setName("Prof. Demo");
+                demoTeacher.setRa("123456");
+                demoTeacher.setRole("teacher");
+                return Optional.of(demoTeacher);
+            }
+            
+            if ("demo_student_token".equals(token)) {
+                User demoStudent = new User();
+                demoStudent.setId("demo_student_1");
+                demoStudent.setName("Aluno Demo");
+                demoStudent.setRa("2024001");
+                demoStudent.setRole("student");
+                return Optional.of(demoStudent);
+            }
+            
+            // Tenta decodificar token real
             String tokenData = new String(Base64.getDecoder().decode(token));
             String[] parts = tokenData.split(":");
             

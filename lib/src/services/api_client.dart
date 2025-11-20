@@ -60,9 +60,6 @@ class ApiClient {
   }
 
   Future<Response> get(String path, {String? token}) async {
-    if (token != null) {
-      setToken(token);
-    }
     if (useFakeApi) {
       await Future.delayed(const Duration(milliseconds: 250));
       return Response(
@@ -71,8 +68,15 @@ class ApiClient {
         data: await _fakeGet(path),
       );
     }
+    
+    // Configura headers para a requisição
+    final options = Options();
+    if (token != null && token.isNotEmpty) {
+      options.headers = {'Authorization': 'Bearer $token'};
+    }
+    
     try {
-      return await dio.get(path);
+      return await dio.get(path, options: options);
     } catch (e) {
       print('Erro ao fazer GET $path: $e');
       rethrow;
@@ -80,9 +84,6 @@ class ApiClient {
   }
 
   Future<Response> post(String path, {dynamic data, String? token}) async {
-    if (token != null) {
-      setToken(token);
-    }
     if (useFakeApi) {
       await Future.delayed(const Duration(milliseconds: 250));
       return Response(
@@ -91,7 +92,19 @@ class ApiClient {
         data: await _fakePost(path, data),
       );
     }
-    return dio.post(path, data: data);
+    
+    // Configura headers para a requisição
+    final options = Options();
+    if (token != null && token.isNotEmpty) {
+      options.headers = {'Authorization': 'Bearer $token'};
+    }
+    
+    try {
+      return await dio.post(path, data: data, options: options);
+    } catch (e) {
+      print('Erro ao fazer POST $path: $e');
+      rethrow;
+    }
   }
 
   Future<Response> put(String path, {dynamic data}) async {
@@ -459,7 +472,22 @@ class ApiClient {
     // POST /messages (enviar mensagem)
     if (path == '/messages') {
       final storage = MessageStorage();
+      final now = DateTime.now();
+      final messageId = 'msg_${now.millisecondsSinceEpoch}';
+      
+      // Cria payload completo com todos os campos necessários
       final payload = Map<String, dynamic>.from(data as Map);
+      payload['id'] = messageId;
+      payload['fromId'] = payload['fromId'] ?? 'teacher_1'; // ID do professor (pode vir do token depois)
+      payload['sentAt'] = now.toIso8601String();
+      payload['isBroadcast'] = payload['isBroadcast'] ?? false;
+      
+      // Se não for broadcast e tiver toId, mantém; senão remove
+      if (payload['isBroadcast'] == true) {
+        payload.remove('toId');
+        payload.remove('toName');
+      }
+      
       await storage.addMessage(payload);
       return {'ok': true, 'message': payload};
     }
