@@ -20,48 +20,64 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final authSvc = ref.watch(authServiceProvider);
+
     return Scaffold(
-      body: Column(
-        children: [
-          // Parte superior azul - agora com Container em vez de AppBar
-          Container(
-            height: 160, 
-            width: double.infinity,
-            color: const Color(0xFF1FB1C2), // Cor azul
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 10),
-                child: Image.asset(
-                  'assets/images/logopoliedro.png',
-                  height: 120,
-                  fit: BoxFit.contain,
-                ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+
+        /// Fundo com degradê azul → amarelo
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1FB1C2), // Azul
+              Color(0xFFFFC66E), // Amarelo
+            ],
+          ),
+        ),
+
+        child: Column(
+          children: [
+            const SizedBox(height: 80),
+
+            /// LOGO
+            Center(
+              child: Image.asset(
+                'assets/images/logopoliedro.png',
+                height: 140,
+                fit: BoxFit.contain,
               ),
             ),
-          ),
-          // Parte do meio com o formulário (expande)
-          Expanded(
-            child: Container(
-              color: Colors.white, // Fundo branco para a área do formulário
+
+            const SizedBox(height: 40),
+
+            /// CARD DE LOGIN
+            Expanded(
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: Card(
-                    margin: const EdgeInsets.all(16),
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     child: Padding(
-                      padding: const EdgeInsets.all(20.0),
+                      padding: const EdgeInsets.all(24.0),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
                             'Login',
                             style: TextStyle(
-                              fontSize: 22,
+                              fontSize: 26,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 24),
 
+                          /// Campo RA
                           TextField(
                             controller: _raCtrl,
                             decoration: const InputDecoration(
@@ -70,6 +86,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
+
+                          /// Campo Senha
                           TextField(
                             controller: _passCtrl,
                             obscureText: true,
@@ -79,6 +97,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             ),
                           ),
                           const SizedBox(height: 16),
+
                           if (error != null)
                             Text(error!, style: const TextStyle(color: Colors.red)),
                           const SizedBox(height: 8),
@@ -102,17 +121,45 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                       if (context.mounted) context.go('/home');
                                     } else {
                                       setState(() {
-                                        error = 'Credenciais inválidas';
+                                        loading = true;
+                                        error = null;
                                       });
-                                    }
-                                  },
-                            child: loading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Text('Entrar'),
+
+                                      final ok = await authSvc.login(
+                                        _raCtrl.text.trim(),
+                                        _passCtrl.text.trim(),
+                                      );
+
+                                      setState(() => loading = false);
+
+                                      if (ok) {
+                                        ref
+                                            .read(authStateProvider.notifier)
+                                            .state = AuthState(isAuthenticated: true);
+
+                                        if (context.mounted) {
+                                          context.go('/home');
+                                        }
+                                      } else {
+                                        setState(() {
+                                          error = 'Credenciais inválidas';
+                                        });
+                                      }
+                                    },
+                              child: loading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Entrar',
+                                      style: TextStyle(fontSize: 16),
+                                    ),
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Row(
@@ -141,14 +188,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
             ),
-          ),
-          // Parte inferior amarela
-          Container(
-            height: 160, 
-            width: double.infinity,
-            color: const Color(0xFFFFC66E),
-          ),
-        ],
+
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

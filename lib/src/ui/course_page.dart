@@ -11,33 +11,25 @@ import 'package:go_router/go_router.dart';
 import '../models/material_item.dart';
 import 'download_helper.dart';
 
-class CoursePage extends ConsumerWidget {
+class CoursePage extends ConsumerStatefulWidget {
   final String courseId;
   const CoursePage({required this.courseId, super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final courseAsync = ref.watch(courseDetailProvider(courseId));
+  ConsumerState<CoursePage> createState() => _CoursePageState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Matéria'),
-        backgroundColor: const Color(0xFFFFC66E),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Atualizar',
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              final _ = ref.refresh(courseDetailProvider(courseId));
-              final __ = ref.refresh(studentsListProvider(courseId));
-            },
-          ),
-        ],
-      ),
+class _CoursePageState extends ConsumerState<CoursePage> with TickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {}); // Atualiza o estado quando a aba muda
+    });
+  }
 
       // Botão flutuante - apenas para professores
       floatingActionButton: ref.watch(authStateProvider).user?.role == 'teacher'
@@ -56,31 +48,51 @@ class CoursePage extends ConsumerWidget {
             )
           : null,
 
-      body: courseAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Erro: $e')),
-        data: (data) {
-          final course = data['course'];
-          final materials = data['materials'] as List;
-          final assignments = data['assignments'] as List;
-          final grades = data['grades'] as List;
+        // Botão flutuante só aparece na aba de Atividades (índice 1)
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        floatingActionButton: _tabController.index == 1
+            ? Padding(
+                padding: const EdgeInsets.only(bottom: 80), // <<< AQUI SOBE O BOTÃO
+                child: FloatingActionButton.extended(
+                  backgroundColor: const Color(0xFF1FB1C2),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 4,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nova Atividade'),
+                  onPressed: () {
+                    context.push('/course/${widget.courseId}/create-assignment');
+                  },
+                ),
+              )
+            : null,
 
-          return Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              children: [
-                Text(course.title, style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 8),
-                Text(course.description),
-                const SizedBox(height: 12),
+        body: courseAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, s) => Center(child: Text('Erro: $e')),
+          data: (data) {
+            final course = data['course'];
+            final materials = data['materials'] as List;
+            final assignments = data['assignments'] as List;
+            final grades = data['grades'] as List;
 
-                Expanded(
-                  child: DefaultTabController(
-                    length: 3,
+            return Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: [
+                  Text(course.title, style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 8),
+                  Text(course.description),
+                  const SizedBox(height: 12),
+
+                  Expanded(
                     child: Column(
                       children: [
-                        const TabBar(
-                          tabs: [
+                        TabBar(
+                          controller: _tabController,
+                          tabs: const [
                             Tab(text: 'Materiais'),
                             Tab(text: 'Atividades'),
                             Tab(text: 'Alunos'),
@@ -88,26 +100,31 @@ class CoursePage extends ConsumerWidget {
                         ),
                         Expanded(
                           child: TabBarView(
+                            controller: _tabController,
                             children: [
                               // Materiais
                               _MaterialsTab(
-                                courseId: courseId,
+                                courseId: widget.courseId,
                                 materials: materials,
                               ),
 
                               // Atividades
-                              ListView.builder(
-                                itemCount: assignments.length,
-                                itemBuilder: (ctx, i) => AssignmentTile(
-                                  item: assignments[i],
-                                  color: const Color(0xFF1FB1C2), // aplica cor
-                                  courseId: courseId,
+                              Expanded(
+                                child: ListView.builder(
+                                  itemCount: assignments.length,
+                                  itemBuilder: (ctx, i) {
+                                    return AssignmentTile(
+                                      item: assignments[i],
+                                      color: const Color(0xFF1FB1C2),
+                                      courseId: widget.courseId,
+                                    );
+                                  },
                                 ),
                               ),
 
                               // Alunos
                               _StudentsTab(
-                                courseId: courseId,
+                                courseId: widget.courseId,
                                 assignments: assignments,
                                 grades: grades,
                               ),
@@ -117,11 +134,11 @@ class CoursePage extends ConsumerWidget {
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

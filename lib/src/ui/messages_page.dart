@@ -15,11 +15,16 @@ class MessagesPage extends ConsumerWidget {
     final allMessagesAsync = ref.watch(messagesProvider(null));
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+
       appBar: AppBar(
         title: const Text('Mensagens'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
+            icon: const Icon(Icons.menu, color: Colors.black),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -33,14 +38,32 @@ class MessagesPage extends ConsumerWidget {
           ),
         ],
       ),
+
       drawer: Drawer(
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text('Navegação', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF1FB1C2),
+                      Color(0xFFFFC66E),
+                    ],
+                  ),
+                ),
+                padding: const EdgeInsets.all(16.0),
+                child: const Text(
+                  'Navegação',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
               const Divider(height: 1),
               ListTile(
@@ -84,7 +107,8 @@ class MessagesPage extends ConsumerWidget {
                 title: const Text('LogOut'),
                 onTap: () {
                   Navigator.pop(context);
-                  ref.read(authStateProvider.notifier).state = AuthState(isAuthenticated: false);
+                  ref.read(authStateProvider.notifier).state =
+                      AuthState(isAuthenticated: false);
                   context.go('/');
                 },
               ),
@@ -169,68 +193,73 @@ class MessagesPage extends ConsumerWidget {
                                   },
                                 );
                               },
-                            );
-                          },
-                        ),
-                        // Aba de mensagens enviadas
-                        allMessagesAsync.when(
-                          loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, s) => Center(child: Text('Erro: $e')),
-                          data: (messages) {
-                            if (messages.isEmpty) {
-                              return const Center(child: Text('Nenhuma mensagem enviada.'));
-                            }
-                            // Ordena por data (mais recente primeiro)
-                            final sorted = List<Message>.from(messages)
-                              ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
-                            return ListView.builder(
-                              padding: const EdgeInsets.all(12),
-                              itemCount: sorted.length,
-                              itemBuilder: (ctx, i) {
-                                final msg = sorted[i];
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  child: ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundColor: msg.isBroadcast 
-                                          ? Colors.orange 
-                                          : const Color(0xFF1FB1C2),
-                                      child: Icon(
-                                        msg.isBroadcast ? Icons.broadcast_on_personal : Icons.person,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    title: Text(msg.isBroadcast ? 'Todos os Alunos' : (msg.toName ?? 'Aluno')),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(height: 4),
-                                        Text(msg.content),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _formatDate(msg.sentAt),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
+                            ),
+
+                            // Mensagens enviadas
+                            allMessagesAsync.when(
+                              loading: () => const Center(child: CircularProgressIndicator()),
+                              error: (e, s) => Center(child: Text('Erro: $e')),
+                              data: (messages) {
+                                if (messages.isEmpty) {
+                                  return const Center(child: Text('Nenhuma mensagem enviada.'));
+                                }
+                                final sorted = List<Message>.from(messages)
+                                  ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
+                                return ListView.builder(
+                                  padding: const EdgeInsets.all(12),
+                                  itemCount: sorted.length,
+                                  itemBuilder: (ctx, i) {
+                                    final msg = sorted[i];
+                                    return Card(
+                                      child: ListTile(
+                                        leading: CircleAvatar(
+                                          backgroundColor: msg.isBroadcast
+                                              ? Colors.orange
+                                              : const Color(0xFF1FB1C2),
+                                          child: Icon(
+                                            msg.isBroadcast
+                                                ? Icons.broadcast_on_personal
+                                                : Icons.person,
+                                            color: Colors.white,
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                    isThreeLine: true,
-                                  ),
+                                        title: Text(
+                                          msg.isBroadcast
+                                              ? 'Todos os Alunos'
+                                              : (msg.toName ?? 'Aluno'),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const SizedBox(height: 4),
+                                            Text(msg.content),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _formatDate(msg.sentAt),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        isThreeLine: true,
+                                      ),
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          },
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -241,9 +270,7 @@ class MessagesPage extends ConsumerWidget {
 
     if (difference.inDays == 0) {
       if (difference.inHours == 0) {
-        if (difference.inMinutes == 0) {
-          return 'Agora';
-        }
+        if (difference.inMinutes == 0) return 'Agora';
         return '${difference.inMinutes} min atrás';
       }
       return '${difference.inHours} h atrás';
@@ -304,7 +331,8 @@ class _SendMessageDialogState extends ConsumerState<_SendMessageDialog> {
                 hintText: 'Digite sua mensagem...',
               ),
               maxLines: 5,
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Digite a mensagem' : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Digite a mensagem' : null,
             ),
           ],
         ),
@@ -358,11 +386,14 @@ class _SendMessageDialogState extends ConsumerState<_SendMessageDialog> {
                   }
                 },
           child: _saving
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Enviar'),
         ),
       ],
     );
   }
 }
-

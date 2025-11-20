@@ -58,7 +58,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _onCreateCourse() async {
-    // Abre a página de criação; ela retornará um Map<String,dynamic> com a nova matéria
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(builder: (_) => const CreateCoursePage()),
     );
@@ -97,7 +96,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
-  // Função opcional para remover matéria local (útil para testes)
   Future<void> _removeLocalCourse(String id) async {
     setState(() {
       _localCourses.removeWhere((c) => c['id'] == id);
@@ -110,23 +108,47 @@ class _HomePageState extends ConsumerState<HomePage> {
     final coursesAsync = ref.watch(coursesListProvider);
 
     return Scaffold(
+      extendBodyBehindAppBar: true, // IMPORTANTE para o degradê ficar atrás da AppBar
+      backgroundColor: Colors.transparent,
+
       appBar: AppBar(
         title: const Text('Minhas Matérias'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
+            icon: const Icon(Icons.menu, color: Colors.black),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
       ),
+
       drawer: Drawer(
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text('Navegação', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF1FB1C2),
+                      Color(0xFFFFC66E),
+                    ],
+                  ),
+                ),
+                padding: const EdgeInsets.all(16.0),
+                child: const Text(
+                  'Navegação',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white, // Ajustado para branco para contraste no gradiente
+                  ),
+                ),
               ),
               const Divider(height: 1),
               ListTile(
@@ -170,7 +192,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 title: const Text('LogOut'),
                 onTap: () {
                   Navigator.pop(context);
-                  ref.read(authStateProvider.notifier).state = AuthState(isAuthenticated: false);
+                  ref.read(authStateProvider.notifier).state =
+                      AuthState(isAuthenticated: false);
                   context.go('/');
                 },
               ),
@@ -178,97 +201,121 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
       ),
-      body: coursesAsync.when(
-        data: (list) {
-          // list -> matérias vindas do provider (provavelmente um List<Course>).
-          // Vamos renderizar uma ListView combinando provider + local.
-          final total = list.length + _localCourses.length;
-          if (total == 0) {
-            // Se ainda carregando locais, mostra loading; caso contrário, mostra texto
-            if (_loadingLocal) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            return const Center(child: Text('Nenhuma matéria encontrada.'));
-          }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: total,
-            itemBuilder: (ctx, idx) {
-              if (idx < list.length) {
-                // matéria vinda do provider -> usa CourseCard (comportamento anterior)
-                final course = list[idx];
-                return CourseCard(
-                  course: course,
-                  onDelete: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text('Excluir matéria'),
-                        content: Text('Deseja excluir "${course.title}"?'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-                          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
-                        ],
-                      ),
-                    );
-                    if (confirmed != true) return;
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1FB1C2),
+              Color(0xFFFFC66E),
+            ],
+          ),
+        ),
 
-                    final delete = ref.read(deleteCourseProvider);
-                    final ok = await delete(course.id);
-                    if (ok) {
-                      if (mounted) {
-                        final _ = ref.refresh(coursesListProvider);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Matéria excluída')),
+        child: SafeArea(
+          child: coursesAsync.when(
+            data: (list) {
+              final total = list.length + _localCourses.length;
+
+              if (total == 0) {
+                if (_loadingLocal) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return const Center(
+                    child: Text('Nenhuma matéria encontrada.'));
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: total,
+                itemBuilder: (ctx, idx) {
+                  if (idx < list.length) {
+                    final course = list[idx];
+                    return CourseCard(
+                      course: course,
+                      onDelete: () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('Excluir matéria'),
+                            content:
+                                Text('Deseja excluir "${course.title}"?'),
+                            actions: [
+                              TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text('Cancelar')),
+                              TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, true),
+                                  child: const Text('Excluir')),
+                            ],
+                          ),
                         );
-                      }
-                    } else {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Falha ao excluir')),
-                        );
-                      }
-                    }
-                  },
-                );
-              } else {
-                // matérias locais -> mostramos com um Card simples
-                final localIdx = idx - list.length;
-                final c = _localCourses[localIdx];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ListTile(
-                    title: Text(c['name'] ?? 'Sem nome'),
-                    subtitle: Text(c['code'] ?? ''),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (v) {
-                        if (v == 'delete') {
-                          _removeLocalCourse(c['id'] ?? '');
+                        if (confirmed != true) return;
+
+                        final delete = ref.read(deleteCourseProvider);
+                        final ok = await delete(course.id);
+                        if (ok) {
+                          if (mounted) {
+                            final _ = ref.refresh(coursesListProvider);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Matéria excluída')),
+                            );
+                          }
+                        } else {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Falha ao excluir')),
+                            );
+                          }
                         }
                       },
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(value: 'delete', child: Text('Remover')),
-                      ],
-                    ),
-                    onTap: () {
-                      // abrir detalhes usando GoRouter
-                      final id = c['id'] ?? '';
-                      if (id.toString().isNotEmpty) {
-                        context.push('/course/$id');
-                      }
-                    },
-                  ),
-                );
-              }
+                    );
+                  } else {
+                    final localIdx = idx - list.length;
+                    final c = _localCourses[localIdx];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListTile(
+                        title: Text(c['name'] ?? 'Sem nome'),
+                        subtitle: Text(c['code'] ?? ''),
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (v) {
+                            if (v == 'delete') {
+                              _removeLocalCourse(c['id'] ?? '');
+                            }
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                                value: 'delete', child: Text('Remover')),
+                          ],
+                        ),
+                        onTap: () {
+                          final id = c['id'] ?? '';
+                          if (id.toString().isNotEmpty) {
+                            context.push('/course/$id');
+                          }
+                        },
+                      ),
+                    );
+                  }
+                },
+              );
             },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Erro ao carregar: $e')),
+            loading: () =>
+                const Center(child: CircularProgressIndicator()),
+            error: (e, s) =>
+                Center(child: Text('Erro ao carregar: $e')),
+          ),
+        ),
       ),
       floatingActionButton: ref.watch(authStateProvider).user?.role == 'teacher'
           ? FloatingActionButton(

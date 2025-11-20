@@ -10,130 +10,142 @@ class AllStudentsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final studentsAsync = ref.watch(allStudentsProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Alunos'),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFF1FB1C2), const Color(0xFFFFC66E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
-      drawer: Drawer(
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text('Navegação', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.book_outlined),
-                title: const Text('Matérias'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.go('/home');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.group_outlined),
-                title: const Text('Alunos'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.go('/students');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.chat_bubble_outline),
-                title: const Text('Mensagens'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.go('/messages');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.settings_outlined),
-                title: const Text('Configuração'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Configuração: em breve')),
-                  );
-                },
-              ),
-              const Spacer(),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.logout),
-                title: const Text('LogOut'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ref.read(authStateProvider.notifier).state = AuthState(isAuthenticated: false);
-                  context.go('/');
-                },
-              ),
-            ],
+      child: Scaffold(
+        backgroundColor: Colors.transparent, // Torna o fundo do Scaffold transparente para mostrar o gradiente
+        appBar: AppBar(
+          title: const Text('Alunos'),
+          backgroundColor: Colors.transparent, // Torna o AppBar transparente para mostrar o gradiente atrás dele
+          elevation: 0, // Remove a sombra para um visual mais limpo
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
           ),
         ),
-      ),
-      body: studentsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Erro: $e')),
-        data: (items) {
-          if (items.isEmpty) {
-            return const Center(child: Text('Nenhum aluno cadastrado.'));
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(),
-            itemBuilder: (ctx, i) {
-              final s = items[i];
-              final subjects = (s['subjects'] as List).cast<String>();
-              final subjectIds = (s['subjectIds'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
-              return ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: Text(s['name'] ?? ''),
-                subtitle: Text('RA: ${s['ra'] ?? ''}\n${subjects.isEmpty ? 'Sem matérias' : 'Matérias: ' + subjects.join(', ')}'),
-                isThreeLine: true,
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit),
-                  tooltip: 'Editar matérias',
-                  onPressed: () async {
-                    final updated = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => _EditEnrollmentsDialog(
-                        studentId: (s['id'] ?? '').toString(),
-                        initialSubjectIds: subjectIds,
-                      ),
-                    );
-                    if (updated == true) {
-                      // ignore: unused_local_variable
-                      final _ = ref.refresh(allStudentsProvider);
-                    }
+        drawer: Drawer(
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('Navegação', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.book_outlined),
+                  title: const Text('Matérias'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go('/home');
                   },
                 ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final created = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => const _CreateStudentDialog(),
-          );
-          if (created == true) {
-            // refresh list
-            // ignore: unused_local_variable
-            final _ = ref.refresh(allStudentsProvider);
-          }
-        },
-        child: const Icon(Icons.add),
+                ListTile(
+                  leading: const Icon(Icons.group_outlined),
+                  title: const Text('Alunos'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go('/students');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.chat_bubble_outline),
+                  title: const Text('Mensagens'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go('/messages');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.settings_outlined),
+                  title: const Text('Configuração'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Configuração: em breve')),
+                    );
+                  },
+                ),
+                const Spacer(),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text('LogOut'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ref.read(authStateProvider.notifier).state = AuthState(isAuthenticated: false);
+                    context.go('/');
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        body: studentsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, s) => Center(child: Text('Erro: $e')),
+          data: (items) {
+            if (items.isEmpty) {
+              return const Center(child: Text('Nenhum aluno cadastrado.'));
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (ctx, i) {
+                final s = items[i];
+                final subjects = (s['subjects'] as List).cast<String>();
+                final subjectIds = (s['subjectIds'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+                return ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Text(s['name'] ?? ''),
+                  subtitle: Text('RA: ${s['ra'] ?? ''}\n${subjects.isEmpty ? 'Sem matérias' : 'Matérias: ' + subjects.join(', ')}'),
+                  isThreeLine: true,
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit),
+                    tooltip: 'Editar matérias',
+                    onPressed: () async {
+                      final updated = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => _EditEnrollmentsDialog(
+                          studentId: (s['id'] ?? '').toString(),
+                          initialSubjectIds: subjectIds,
+                        ),
+                      );
+                      if (updated == true) {
+                        // ignore: unused_local_variable
+                        final _ = ref.refresh(allStudentsProvider);
+                      }
+                    },
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () async {
+            final created = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => const _CreateStudentDialog(),
+            );
+            if (created == true) {
+              // refresh list
+              // ignore: unused_local_variable
+              final _ = ref.refresh(allStudentsProvider);
+            }
+          },
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
@@ -288,5 +300,3 @@ class _EditEnrollmentsDialogState extends ConsumerState<_EditEnrollmentsDialog> 
     );
   }
 }
-
-
