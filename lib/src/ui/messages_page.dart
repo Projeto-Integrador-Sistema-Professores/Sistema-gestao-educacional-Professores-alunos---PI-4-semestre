@@ -28,6 +28,15 @@ class MessagesPage extends ConsumerWidget {
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Atualizar',
+            onPressed: () {
+              final _ = ref.refresh(messagesProvider(null));
+            },
+          ),
+        ],
       ),
 
       drawer: Drawer(
@@ -107,99 +116,80 @@ class MessagesPage extends ConsumerWidget {
           ),
         ),
       ),
-
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1FB1C2),
-              Color(0xFFFFC66E),
-            ],
-          ),
-        ),
-
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Botão para todos
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      final sent = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => _SendMessageDialog(
-                          broadcast: true,
-                        ),
-                      );
-                      if (sent == true) {
-                        final _ = ref.refresh(messagesProvider(null));
-                      }
-                    },
-                    icon: const Icon(Icons.broadcast_on_personal),
-                    label: const Text('Enviar para Todos'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-                      foregroundColor: Colors.white,
-                    ),
+      body: Column(
+        children: [
+          // Botão para enviar mensagem para todos - apenas para professores
+          if (ref.watch(authStateProvider).user?.role == 'teacher')
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final sent = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => _SendMessageDialog(
+                        broadcast: true,
+                      ),
+                    );
+                    if (sent == true) {
+                      final _ = ref.refresh(messagesProvider(null));
+                    }
+                  },
+                  icon: const Icon(Icons.broadcast_on_personal),
+                  label: const Text('Enviar para Todos'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1FB1C2),
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ),
-
-              Expanded(
-                child: DefaultTabController(
-                  length: 2,
-                  child: Column(
-                    children: [
-                      const TabBar(
-                        indicatorColor: Colors.black,
-                        labelColor: Colors.black,
-                        tabs: [
-                          Tab(text: 'Alunos'),
-                          Tab(text: 'Mensagens Enviadas'),
-                        ],
-                      ),
-                      Expanded(
-                        child: TabBarView(
-                          children: [
-                            // Alunos
-                            studentsAsync.when(
-                              loading: () => const Center(child: CircularProgressIndicator()),
-                              error: (e, s) => Center(child: Text('Erro: $e')),
-                              data: (students) {
-                                if (students.isEmpty) {
-                                  return const Center(child: Text('Nenhum aluno cadastrado.'));
-                                }
-                                return ListView.builder(
-                                  padding: const EdgeInsets.all(12),
-                                  itemCount: students.length,
-                                  itemBuilder: (ctx, i) {
-                                    final student = students[i];
-                                    return Card(
-                                      child: ListTile(
-                                        leading: const CircleAvatar(child: Icon(Icons.person)),
-                                        title: Text(student['name'] ?? ''),
-                                        subtitle: Text('RA: ${student['ra'] ?? ''}'),
-                                        trailing: const Icon(Icons.chevron_right),
-                                        onTap: () async {
-                                          final sent = await showDialog<bool>(
-                                            context: context,
-                                            builder: (ctx) => _SendMessageDialog(
-                                              studentId: student['id']?.toString(),
-                                              studentName: student['name']?.toString(),
-                                              broadcast: false,
-                                            ),
-                                          );
-                                          if (sent == true) {
-                                            final _ = ref.refresh(messagesProvider(null));
-                                          }
-                                        },
+            ),
+          // Lista de alunos ou mensagens
+          Expanded(
+            child: DefaultTabController(
+              length: 2,
+              child: Column(
+                children: [
+                  const TabBar(
+                    tabs: [
+                      Tab(text: 'Alunos'),
+                      Tab(text: 'Mensagens Enviadas'),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        // Aba de alunos
+                        studentsAsync.when(
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          error: (e, s) => Center(child: Text('Erro: $e')),
+                          data: (students) {
+                            if (students.isEmpty) {
+                              return const Center(child: Text('Nenhum aluno cadastrado.'));
+                            }
+                            return ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: students.length,
+                              itemBuilder: (ctx, i) {
+                                final student = students[i];
+                                return ListTile(
+                                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                                  title: Text(student['name'] ?? ''),
+                                  subtitle: Text('RA: ${student['ra'] ?? ''}'),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () async {
+                                    final sent = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => _SendMessageDialog(
+                                        studentId: student['id']?.toString(),
+                                        studentName: student['name']?.toString(),
+                                        broadcast: false,
                                       ),
                                     );
+                                    if (sent == true) {
+                                      final _ = ref.refresh(messagesProvider(null));
+                                    }
                                   },
                                 );
                               },
@@ -358,23 +348,41 @@ class _SendMessageDialogState extends ConsumerState<_SendMessageDialog> {
               : () async {
                   if (!_formKey.currentState!.validate()) return;
                   setState(() => _saving = true);
-                  final send = ref.read(sendMessageProvider);
-                  await send(
-                    content: _contentCtrl.text.trim(),
-                    toStudentId: widget.studentId,
-                    toStudentName: widget.studentName,
-                    broadcast: widget.broadcast,
-                  );
-                  if (mounted) {
-                    setState(() => _saving = false);
-                    Navigator.pop(context, true);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(widget.broadcast
-                            ? 'Mensagem enviada para todos os alunos!'
-                            : 'Mensagem enviada!'),
-                      ),
+                  
+                  try {
+                    final send = ref.read(sendMessageProvider);
+                    await send(
+                      content: _contentCtrl.text.trim(),
+                      toStudentId: widget.studentId,
+                      toStudentName: widget.studentName,
+                      broadcast: widget.broadcast,
                     );
+                    if (mounted) {
+                      setState(() => _saving = false);
+                      Navigator.pop(context, true);
+                      
+                      // Atualiza a lista de mensagens após enviar
+                      final _ = ref.refresh(messagesProvider(null));
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(widget.broadcast 
+                              ? 'Mensagem enviada para todos os alunos!' 
+                              : 'Mensagem enviada!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      setState(() => _saving = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Erro ao enviar mensagem: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
                 },
           child: _saving

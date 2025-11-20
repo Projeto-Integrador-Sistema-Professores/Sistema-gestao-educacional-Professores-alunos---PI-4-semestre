@@ -19,15 +19,47 @@ class ApiClient {
   factory ApiClient({String? token}) {
     final dio = Dio(BaseOptions(
       baseUrl: apiBaseUrl,
-      connectTimeout: const Duration(seconds: 5),
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
     ));
     if (token != null && token.isNotEmpty) {
       dio.options.headers['Authorization'] = 'Bearer $token';
     }
     return ApiClient._(dio);
   }
+  
+  // Método para atualizar o token dinamicamente
+  void setToken(String? token) {
+    if (token != null && token.isNotEmpty) {
+      dio.options.headers['Authorization'] = 'Bearer $token';
+    } else {
+      dio.options.headers.remove('Authorization');
+    }
+  }
 
-  Future<Response> get(String path) async {
+  // Método para fazer POST com multipart/form-data
+  Future<Response> postMultipart(String path, {required FormData formData}) async {
+    if (useFakeApi) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      // Para fake API, extrai os dados do FormData
+      final title = formData.fields.firstWhere((e) => e.key == 'title', orElse: () => const MapEntry('title', '')).value;
+      final file = formData.files.firstOrNull;
+      final fileName = file?.value.filename ?? 'arquivo';
+      
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        statusCode: 201,
+        data: await _fakePost(path, {
+          'title': title,
+          'fileName': fileName,
+          'fileData': 'fake_base64_data',
+        }),
+      );
+    }
+    return dio.post(path, data: formData);
+  }
+
+  Future<Response> get(String path, {String? token}) async {
     if (useFakeApi) {
       await Future.delayed(const Duration(milliseconds: 250));
       return Response(
@@ -36,10 +68,22 @@ class ApiClient {
         data: await _fakeGet(path),
       );
     }
-    return dio.get(path);
+    
+    // Configura headers para a requisição
+    final options = Options();
+    if (token != null && token.isNotEmpty) {
+      options.headers = {'Authorization': 'Bearer $token'};
+    }
+    
+    try {
+      return await dio.get(path, options: options);
+    } catch (e) {
+      print('Erro ao fazer GET $path: $e');
+      rethrow;
+    }
   }
 
-  Future<Response> post(String path, {dynamic data}) async {
+  Future<Response> post(String path, {dynamic data, String? token}) async {
     if (useFakeApi) {
       await Future.delayed(const Duration(milliseconds: 250));
       return Response(
@@ -48,7 +92,19 @@ class ApiClient {
         data: await _fakePost(path, data),
       );
     }
-    return dio.post(path, data: data);
+    
+    // Configura headers para a requisição
+    final options = Options();
+    if (token != null && token.isNotEmpty) {
+      options.headers = {'Authorization': 'Bearer $token'};
+    }
+    
+    try {
+      return await dio.post(path, data: data, options: options);
+    } catch (e) {
+      print('Erro ao fazer POST $path: $e');
+      rethrow;
+    }
   }
 
   Future<Response> put(String path, {dynamic data}) async {
@@ -416,7 +472,22 @@ class ApiClient {
     // POST /messages (enviar mensagem)
     if (path == '/messages') {
       final storage = MessageStorage();
+      final now = DateTime.now();
+      final messageId = 'msg_${now.millisecondsSinceEpoch}';
+      
+      // Cria payload completo com todos os campos necessários
       final payload = Map<String, dynamic>.from(data as Map);
+      payload['id'] = messageId;
+      payload['fromId'] = payload['fromId'] ?? 'teacher_1'; // ID do professor (pode vir do token depois)
+      payload['sentAt'] = now.toIso8601String();
+      payload['isBroadcast'] = payload['isBroadcast'] ?? false;
+      
+      // Se não for broadcast e tiver toId, mantém; senão remove
+      if (payload['isBroadcast'] == true) {
+        payload.remove('toId');
+        payload.remove('toName');
+      }
+      
       await storage.addMessage(payload);
       return {'ok': true, 'message': payload};
     }

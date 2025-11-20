@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../models/user.dart';
 import 'package:go_router/go_router.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -80,8 +81,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           TextField(
                             controller: _raCtrl,
                             decoration: const InputDecoration(
-                              labelText: 'RA',
-                              prefixIcon: Icon(Icons.person),
+                              labelText: 'RA ou Nome@poliedro',
+                              hintText: 'Para alunos: nome@poliedro | Para professores: RA',
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -92,33 +93,33 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             obscureText: true,
                             decoration: const InputDecoration(
                               labelText: 'Senha',
-                              prefixIcon: Icon(Icons.lock),
+                              hintText: 'Para alunos: RA | Para professores: senha',
                             ),
                           ),
                           const SizedBox(height: 16),
 
                           if (error != null)
-                            Text(
-                              error!,
-                              style: const TextStyle(color: Colors.red),
-                            ),
-
-                          const SizedBox(height: 12),
-
-                          /// BOTÃO ENTRAR
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.teal.shade700,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: loading
-                                  ? null
-                                  : () async {
+                            Text(error!, style: const TextStyle(color: Colors.red)),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: loading
+                                ? null
+                                : () async {
+                                    setState(() {
+                                      loading = true;
+                                      error = null;
+                                    });
+                                    final result = await authSvc.login(
+                                        _raCtrl.text.trim(), _passCtrl.text.trim());
+                                    setState(() {
+                                      loading = false;
+                                    });
+                                    if (result != null) {
+                                      final user = User.fromJson(result['user'] as Map<String, dynamic>);
+                                      ref.read(authStateProvider.notifier).state =
+                                          AuthState(isAuthenticated: true, user: user);
+                                      if (context.mounted) context.go('/home');
+                                    } else {
                                       setState(() {
                                         loading = true;
                                         error = null;
@@ -161,14 +162,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             ),
                           ),
                           const SizedBox(height: 8),
-
-                          /// Botão Demo
-                          TextButton(
-                            onPressed: () {
-                              _raCtrl.text = 'demo';
-                              _passCtrl.text = 'demo';
-                            },
-                            child: const Text('Usar credenciais demo'),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              TextButton(
+                                onPressed: () {
+                                  _raCtrl.text = 'demo';
+                                  _passCtrl.text = 'demo';
+                                },
+                                child: const Text('Demo Professor'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  _raCtrl.text = 'demo@poliedro';
+                                  _passCtrl.text = 'demo';
+                                },
+                                child: const Text('Demo Aluno'),
+                              ),
+                            ],
                           ),
                         ],
                       ),

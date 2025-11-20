@@ -1,5 +1,6 @@
 // lib/src/providers/courses_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gestor_alunos/src/providers/auth_provider.dart';
 import '../services/api_client.dart';
 import '../services/course_service.dart';
 import '../services/student_service.dart';
@@ -13,7 +14,9 @@ import '../models/submission.dart';
 import '../models/material_item.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient(); // for simplicity; can read token from auth service
+  // Por enquanto, retorna sem token - o token será adicionado nas requisições individuais
+  // quando necessário através do AuthService
+  return ApiClient();
 });
 
 final courseServiceProvider = Provider<CourseService>((ref) {
@@ -97,10 +100,23 @@ final deleteCourseProvider = Provider((ref) {
   };
 });
 
+// NEW: create course action
+final createCourseProvider = Provider((ref) {
+  final svc = ref.watch(courseServiceProvider);
+  return ({
+    required String name,
+    required String code,
+    String? description,
+  }) async {
+    return svc.createCourse(name: name, code: code, description: description);
+  };
+});
+
 // Messages
 final messageServiceProvider = Provider<MessageService>((ref) {
   final client = ref.watch(apiClientProvider);
-  return MessageService(client);
+  final authService = ref.watch(authServiceProvider);
+  return MessageService(client, authService);
 });
 
 final messagesProvider = FutureProvider.family<List<Message>, String?>((ref, studentId) async {
@@ -187,7 +203,7 @@ final createMaterialProvider = Provider((ref) {
 
 final downloadMaterialProvider = Provider((ref) {
   final svc = ref.watch(materialServiceProvider);
-  return (String materialId) async {
-    return svc.downloadMaterial(materialId);
+  return (String fileStorageId, {String? fileName}) async {
+    return svc.downloadMaterial(fileStorageId, fileName: fileName);
   };
 });

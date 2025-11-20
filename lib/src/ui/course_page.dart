@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../providers/courses_provider.dart';
+import '../providers/auth_provider.dart';
 import 'widgets/material_tile.dart';
 import 'widgets/assignment_tile.dart';
 import 'package:go_router/go_router.dart';
@@ -30,45 +31,22 @@ class _CoursePageState extends ConsumerState<CoursePage> with TickerProviderStat
     });
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final courseAsync = ref.watch(courseDetailProvider(widget.courseId));
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [const Color(0xFF1FB1C2), const Color(0xFFFFC66E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent, // Torna o fundo do Scaffold transparente para mostrar o gradiente
-        appBar: AppBar(
-          title: const Text('Matéria'),
-          backgroundColor: Colors.transparent, // Torna o AppBar transparente para mostrar o gradiente atrás dele
-          elevation: 0, // Remove a sombra para um visual mais limpo
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Atualizar',
-              icon: const Icon(Icons.refresh),
+      // Botão flutuante - apenas para professores
+      floatingActionButton: ref.watch(authStateProvider).user?.role == 'teacher'
+          ? FloatingActionButton.extended(
+              backgroundColor: const Color(0xFF1FB1C2),
+              foregroundColor: const Color.fromARGB(255, 255, 255, 255),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              elevation: 4,
+              icon: const Icon(Icons.add),
+              label: const Text('Nova Atividade'),
               onPressed: () {
-                final _ = ref.refresh(courseDetailProvider(widget.courseId));
-                final __ = ref.refresh(studentsListProvider(widget.courseId));
+                context.push('/course/$courseId/create-assignment');
               },
-            ),
-          ],
-        ),
+            )
+          : null,
 
         // Botão flutuante só aparece na aba de Atividades (índice 1)
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
@@ -240,18 +218,20 @@ class _StudentsTab extends ConsumerWidget {
                     title: Text(student.name),
                     subtitle: Text('RA: ${student.ra}\nMédia: ${average.toStringAsFixed(1)}'),
                     isThreeLine: true,
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit),
-                      tooltip: 'Lançar nota',
-                      onPressed: () {
-                        final firstAssignmentId =
-                            (assignments.isNotEmpty && assignments[0] is Map)
-                                ? (assignments[0]['id'] ?? '')
-                                : (assignments.isNotEmpty ? assignments[0].id ?? '' : '');
-                        context.push(
-                            '/course/$courseId/grade?studentId=${student.id}&assignmentId=$firstAssignmentId');
-                      },
-                    ),
+                    trailing: ref.watch(authStateProvider).user?.role == 'teacher'
+                        ? IconButton(
+                            icon: const Icon(Icons.edit),
+                            tooltip: 'Lançar nota',
+                            onPressed: () {
+                              final firstAssignmentId =
+                                  (assignments.isNotEmpty && assignments[0] is Map)
+                                      ? (assignments[0]['id'] ?? '')
+                                      : (assignments.isNotEmpty ? assignments[0].id ?? '' : '');
+                              context.push(
+                                  '/course/$courseId/grade?studentId=${student.id}&assignmentId=$firstAssignmentId');
+                            },
+                          )
+                        : null,
                   );
                 },
               ),
@@ -285,8 +265,23 @@ class _MaterialsTab extends ConsumerStatefulWidget {
 class _MaterialsTabState extends ConsumerState<_MaterialsTab> {
   Future<void> _downloadMaterial(MaterialItem material) async {
     try {
+      // Usa o fileStorageId se disponível, senão tenta extrair do fileUrl
+      final fileStorageId = material.fileStorageId ?? 
+          (material.fileUrl.contains('/materials/') 
+              ? material.fileUrl.split('/materials/')[1].split('/download')[0]
+              : null);
+      
+      if (fileStorageId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ID do arquivo não encontrado')),
+          );
+        }
+        return;
+      }
+
       final download = ref.read(downloadMaterialProvider);
-      final data = await download(material.id);
+      final data = await download(fileStorageId, fileName: material.fileName);
       
       if (data.isEmpty || data['fileData'] == null) {
         if (mounted) {
@@ -298,17 +293,17 @@ class _MaterialsTabState extends ConsumerState<_MaterialsTab> {
       }
 
       final fileData = data['fileData'] as String;
-      final fileName = data['fileName'] ?? material.title;
+      final fileName = data['fileName'] ?? material.fileName ?? material.title;
 
       if (kIsWeb) {
         // Na web, usa helper para download
         downloadFileWeb(fileData, fileName);
       } else {
         // Em mobile/desktop, salva o arquivo
-        // Por enquanto, apenas mostra mensagem
+        await downloadFileIO(data['bytes'] as List<int>, fileName);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Download iniciado: $fileName')),
+            SnackBar(content: Text('Download concluído: $fileName')),
           );
         }
       }
@@ -342,30 +337,31 @@ class _MaterialsTabState extends ConsumerState<_MaterialsTab> {
                   },
                 ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final added = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => _AddMaterialDialog(courseId: widget.courseId),
-                );
-                if (added == true) {
-                  // Atualiza a lista
-                  final _ = ref.refresh(courseDetailProvider(widget.courseId));
-                }
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Adicionar Material'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1FB1C2),
-                foregroundColor: Colors.white,
+        if (ref.watch(authStateProvider).user?.role == 'teacher')
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final added = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => _AddMaterialDialog(courseId: widget.courseId),
+                  );
+                  if (added == true) {
+                    // Atualiza a lista
+                    final _ = ref.refresh(courseDetailProvider(widget.courseId));
+                  }
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Adicionar Material'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1FB1C2),
+                  foregroundColor: Colors.white,
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }

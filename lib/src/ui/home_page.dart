@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'create_course_page.dart';
 import '../models/subject.dart';
 import '../services/subject_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -62,22 +63,35 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
 
     if (result != null) {
-      final id = (result['id'] != null && result['id'].toString().isNotEmpty)
-          ? result['id'].toString()
-          : UniqueKey().toString();
-      result['id'] = id;
+      try {
+        // Chama a API para criar a matéria no backend
+        final create = ref.read(createCourseProvider);
+        final course = await create(
+          name: (result['name'] ?? '').toString(),
+          code: (result['code'] ?? '').toString(),
+          description: result['description']?.toString(),
+        );
 
-      final storage = SubjectStorage();
-      final subject = Subject(
-        id: id,
-        name: (result['name'] ?? '').toString(),
-        code: (result['code'] ?? '').toString(),
-      );
-      await storage.addSubject(subject);
+        // Também persiste localmente para compatibilidade (se useFakeApi estiver ativo)
+        final storage = SubjectStorage();
+        final subject = Subject(
+          id: course.id,
+          name: course.title,
+          code: course.code,
+        );
+        await storage.addSubject(subject);
 
-      if (mounted) {
-        final _ = ref.refresh(coursesListProvider);
-        context.push('/course/$id');
+        // força atualização da lista principal
+        if (mounted) {
+          ref.refresh(coursesListProvider);
+          context.push('/course/${course.id}');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao criar matéria: $e')),
+          );
+        }
       }
     }
   }
@@ -303,12 +317,13 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
       ),
-
-      floatingActionButton: FloatingActionButton(
-        onPressed: _onCreateCourse,
-        tooltip: 'Criar Matéria',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: ref.watch(authStateProvider).user?.role == 'teacher'
+          ? FloatingActionButton(
+              onPressed: _onCreateCourse,
+              tooltip: 'Criar Matéria',
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }
