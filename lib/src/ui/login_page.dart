@@ -121,45 +121,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                       if (context.mounted) context.go('/home');
                                     } else {
                                       setState(() {
-                                        loading = true;
-                                        error = null;
+                                        error = 'Credenciais inválidas';
                                       });
-
-                                      final ok = await authSvc.login(
-                                        _raCtrl.text.trim(),
-                                        _passCtrl.text.trim(),
-                                      );
-
-                                      setState(() => loading = false);
-
-                                      if (ok) {
-                                        ref
-                                            .read(authStateProvider.notifier)
-                                            .state = AuthState(isAuthenticated: true);
-
-                                        if (context.mounted) {
-                                          context.go('/home');
-                                        }
-                                      } else {
-                                        setState(() {
-                                          error = 'Credenciais inválidas';
-                                        });
-                                      }
-                                    },
-                              child: loading
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'Entrar',
-                                      style: TextStyle(fontSize: 16),
+                                    }
+                                  },
+                            child: loading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
                                     ),
-                            ),
+                                  )
+                                : const Text(
+                                    'Entrar',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
                           ),
                           const SizedBox(height: 8),
                           Row(

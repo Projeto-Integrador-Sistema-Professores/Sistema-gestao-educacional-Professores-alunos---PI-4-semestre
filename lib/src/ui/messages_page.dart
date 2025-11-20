@@ -193,73 +193,72 @@ class MessagesPage extends ConsumerWidget {
                                   },
                                 );
                               },
-                            ),
-
-                            // Mensagens enviadas
-                            allMessagesAsync.when(
-                              loading: () => const Center(child: CircularProgressIndicator()),
-                              error: (e, s) => Center(child: Text('Erro: $e')),
-                              data: (messages) {
-                                if (messages.isEmpty) {
-                                  return const Center(child: Text('Nenhuma mensagem enviada.'));
-                                }
-                                final sorted = List<Message>.from(messages)
-                                  ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
-                                return ListView.builder(
-                                  padding: const EdgeInsets.all(12),
-                                  itemCount: sorted.length,
-                                  itemBuilder: (ctx, i) {
-                                    final msg = sorted[i];
-                                    return Card(
-                                      child: ListTile(
-                                        leading: CircleAvatar(
-                                          backgroundColor: msg.isBroadcast
-                                              ? Colors.orange
-                                              : const Color(0xFF1FB1C2),
-                                          child: Icon(
-                                            msg.isBroadcast
-                                                ? Icons.broadcast_on_personal
-                                                : Icons.person,
-                                            color: Colors.white,
+                            );
+                          },
+                        ),
+                        // Aba de mensagens enviadas
+                        allMessagesAsync.when(
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          error: (e, s) => Center(child: Text('Erro: $e')),
+                          data: (messages) {
+                            if (messages.isEmpty) {
+                              return const Center(child: Text('Nenhuma mensagem enviada.'));
+                            }
+                            final sorted = List<Message>.from(messages)
+                              ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
+                            return ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: sorted.length,
+                              itemBuilder: (ctx, i) {
+                                final msg = sorted[i];
+                                return Card(
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: msg.isBroadcast
+                                          ? Colors.orange
+                                          : const Color(0xFF1FB1C2),
+                                      child: Icon(
+                                        msg.isBroadcast
+                                            ? Icons.broadcast_on_personal
+                                            : Icons.person,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    title: Text(
+                                      msg.isBroadcast
+                                          ? 'Todos os Alunos'
+                                          : (msg.toName ?? 'Aluno'),
+                                    ),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const SizedBox(height: 4),
+                                        Text(msg.content),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _formatDate(msg.sentAt),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
                                           ),
                                         ),
-                                        title: Text(
-                                          msg.isBroadcast
-                                              ? 'Todos os Alunos'
-                                              : (msg.toName ?? 'Aluno'),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            const SizedBox(height: 4),
-                                            Text(msg.content),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              _formatDate(msg.sentAt),
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[600],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        isThreeLine: true,
-                                      ),
-                                    );
-                                  },
+                                      ],
+                                    ),
+                                    isThreeLine: true,
+                                  ),
                                 );
                               },
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

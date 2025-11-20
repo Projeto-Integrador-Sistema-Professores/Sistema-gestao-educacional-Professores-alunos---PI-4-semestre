@@ -31,48 +31,45 @@ class _CoursePageState extends ConsumerState<CoursePage> with TickerProviderStat
     });
   }
 
-      // Botão flutuante - apenas para professores
-      floatingActionButton: ref.watch(authStateProvider).user?.role == 'teacher'
-          ? FloatingActionButton.extended(
-              backgroundColor: const Color(0xFF1FB1C2),
-              foregroundColor: const Color.fromARGB(255, 255, 255, 255),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final courseAsync = ref.watch(courseDetailProvider(widget.courseId));
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Detalhes da Matéria'),
+      ),
+      // Botão flutuante só aparece na aba de Atividades (índice 1) e apenas para professores
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: _tabController.index == 1 &&
+              ref.watch(authStateProvider).user?.role == 'teacher'
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 80),
+              child: FloatingActionButton.extended(
+                backgroundColor: const Color(0xFF1FB1C2),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                elevation: 4,
+                icon: const Icon(Icons.add),
+                label: const Text('Nova Atividade'),
+                onPressed: () {
+                  context.push('/course/${widget.courseId}/create-assignment');
+                },
               ),
-              elevation: 4,
-              icon: const Icon(Icons.add),
-              label: const Text('Nova Atividade'),
-              onPressed: () {
-                context.push('/course/$courseId/create-assignment');
-              },
             )
           : null,
-
-        // Botão flutuante só aparece na aba de Atividades (índice 1)
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: _tabController.index == 1
-            ? Padding(
-                padding: const EdgeInsets.only(bottom: 80), // <<< AQUI SOBE O BOTÃO
-                child: FloatingActionButton.extended(
-                  backgroundColor: const Color(0xFF1FB1C2),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  elevation: 4,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nova Atividade'),
-                  onPressed: () {
-                    context.push('/course/${widget.courseId}/create-assignment');
-                  },
-                ),
-              )
-            : null,
-
-        body: courseAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, s) => Center(child: Text('Erro: $e')),
-          data: (data) {
+      body: courseAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, s) => Center(child: Text('Erro: $e')),
+        data: (data) {
             final course = data['course'];
             final materials = data['materials'] as List;
             final assignments = data['assignments'] as List;
@@ -109,17 +106,15 @@ class _CoursePageState extends ConsumerState<CoursePage> with TickerProviderStat
                               ),
 
                               // Atividades
-                              Expanded(
-                                child: ListView.builder(
-                                  itemCount: assignments.length,
-                                  itemBuilder: (ctx, i) {
-                                    return AssignmentTile(
-                                      item: assignments[i],
-                                      color: const Color(0xFF1FB1C2),
-                                      courseId: widget.courseId,
-                                    );
-                                  },
-                                ),
+                              ListView.builder(
+                                itemCount: assignments.length,
+                                itemBuilder: (ctx, i) {
+                                  return AssignmentTile(
+                                    item: assignments[i],
+                                    color: const Color(0xFF1FB1C2),
+                                    courseId: widget.courseId,
+                                  );
+                                },
                               ),
 
                               // Alunos
@@ -138,7 +133,6 @@ class _CoursePageState extends ConsumerState<CoursePage> with TickerProviderStat
               ),
             );
           },
-        ),
       ),
     );
   }
