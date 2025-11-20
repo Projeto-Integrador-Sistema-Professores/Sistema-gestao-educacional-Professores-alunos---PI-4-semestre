@@ -15,23 +15,46 @@ class MessagesPage extends ConsumerWidget {
     final allMessagesAsync = ref.watch(messagesProvider(null));
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+
       appBar: AppBar(
         title: const Text('Mensagens'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
+            icon: const Icon(Icons.menu, color: Colors.black),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
       ),
+
       drawer: Drawer(
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text('Navegação', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF1FB1C2),
+                      Color(0xFFFFC66E),
+                    ],
+                  ),
+                ),
+                padding: const EdgeInsets.all(16.0),
+                child: const Text(
+                  'Navegação',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
               const Divider(height: 1),
               ListTile(
@@ -75,7 +98,8 @@ class MessagesPage extends ConsumerWidget {
                 title: const Text('LogOut'),
                 onTap: () {
                   Navigator.pop(context);
-                  ref.read(authStateProvider.notifier).state = AuthState(isAuthenticated: false);
+                  ref.read(authStateProvider.notifier).state =
+                      AuthState(isAuthenticated: false);
                   context.go('/');
                 },
               ),
@@ -83,146 +107,169 @@ class MessagesPage extends ConsumerWidget {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          // Botão para enviar mensagem para todos
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final sent = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => _SendMessageDialog(
-                      broadcast: true,
+
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1FB1C2),
+              Color(0xFFFFC66E),
+            ],
+          ),
+        ),
+
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Botão para todos
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final sent = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => _SendMessageDialog(
+                          broadcast: true,
+                        ),
+                      );
+                      if (sent == true) {
+                        final _ = ref.refresh(messagesProvider(null));
+                      }
+                    },
+                    icon: const Icon(Icons.broadcast_on_personal),
+                    label: const Text('Enviar para Todos'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+                      foregroundColor: Colors.white,
                     ),
-                  );
-                  if (sent == true) {
-                    // ignore: unused_local_variable
-                    final _ = ref.refresh(messagesProvider(null));
-                  }
-                },
-                icon: const Icon(Icons.broadcast_on_personal),
-                label: const Text('Enviar para Todos'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1FB1C2),
-                  foregroundColor: Colors.white,
+                  ),
                 ),
               ),
-            ),
-          ),
-          // Lista de alunos ou mensagens
-          Expanded(
-            child: DefaultTabController(
-              length: 2,
-              child: Column(
-                children: [
-                  const TabBar(
-                    tabs: [
-                      Tab(text: 'Alunos'),
-                      Tab(text: 'Mensagens Enviadas'),
-                    ],
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        // Aba de alunos
-                        studentsAsync.when(
-                          loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, s) => Center(child: Text('Erro: $e')),
-                          data: (students) {
-                            if (students.isEmpty) {
-                              return const Center(child: Text('Nenhum aluno cadastrado.'));
-                            }
-                            return ListView.builder(
-                              padding: const EdgeInsets.all(12),
-                              itemCount: students.length,
-                              itemBuilder: (ctx, i) {
-                                final student = students[i];
-                                return ListTile(
-                                  leading: const CircleAvatar(child: Icon(Icons.person)),
-                                  title: Text(student['name'] ?? ''),
-                                  subtitle: Text('RA: ${student['ra'] ?? ''}'),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () async {
-                                    final sent = await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => _SendMessageDialog(
-                                        studentId: student['id']?.toString(),
-                                        studentName: student['name']?.toString(),
-                                        broadcast: false,
+
+              Expanded(
+                child: DefaultTabController(
+                  length: 2,
+                  child: Column(
+                    children: [
+                      const TabBar(
+                        indicatorColor: Colors.black,
+                        labelColor: Colors.black,
+                        tabs: [
+                          Tab(text: 'Alunos'),
+                          Tab(text: 'Mensagens Enviadas'),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            // Alunos
+                            studentsAsync.when(
+                              loading: () => const Center(child: CircularProgressIndicator()),
+                              error: (e, s) => Center(child: Text('Erro: $e')),
+                              data: (students) {
+                                if (students.isEmpty) {
+                                  return const Center(child: Text('Nenhum aluno cadastrado.'));
+                                }
+                                return ListView.builder(
+                                  padding: const EdgeInsets.all(12),
+                                  itemCount: students.length,
+                                  itemBuilder: (ctx, i) {
+                                    final student = students[i];
+                                    return Card(
+                                      child: ListTile(
+                                        leading: const CircleAvatar(child: Icon(Icons.person)),
+                                        title: Text(student['name'] ?? ''),
+                                        subtitle: Text('RA: ${student['ra'] ?? ''}'),
+                                        trailing: const Icon(Icons.chevron_right),
+                                        onTap: () async {
+                                          final sent = await showDialog<bool>(
+                                            context: context,
+                                            builder: (ctx) => _SendMessageDialog(
+                                              studentId: student['id']?.toString(),
+                                              studentName: student['name']?.toString(),
+                                              broadcast: false,
+                                            ),
+                                          );
+                                          if (sent == true) {
+                                            final _ = ref.refresh(messagesProvider(null));
+                                          }
+                                        },
                                       ),
                                     );
-                                    if (sent == true) {
-                                      // ignore: unused_local_variable
-                                      final _ = ref.refresh(messagesProvider(null));
-                                    }
                                   },
                                 );
                               },
-                            );
-                          },
-                        ),
-                        // Aba de mensagens enviadas
-                        allMessagesAsync.when(
-                          loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, s) => Center(child: Text('Erro: $e')),
-                          data: (messages) {
-                            if (messages.isEmpty) {
-                              return const Center(child: Text('Nenhuma mensagem enviada.'));
-                            }
-                            // Ordena por data (mais recente primeiro)
-                            final sorted = List<Message>.from(messages)
-                              ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
-                            return ListView.builder(
-                              padding: const EdgeInsets.all(12),
-                              itemCount: sorted.length,
-                              itemBuilder: (ctx, i) {
-                                final msg = sorted[i];
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  child: ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundColor: msg.isBroadcast 
-                                          ? Colors.orange 
-                                          : const Color(0xFF1FB1C2),
-                                      child: Icon(
-                                        msg.isBroadcast ? Icons.broadcast_on_personal : Icons.person,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    title: Text(msg.isBroadcast ? 'Todos os Alunos' : (msg.toName ?? 'Aluno')),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(height: 4),
-                                        Text(msg.content),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _formatDate(msg.sentAt),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
+                            ),
+
+                            // Mensagens enviadas
+                            allMessagesAsync.when(
+                              loading: () => const Center(child: CircularProgressIndicator()),
+                              error: (e, s) => Center(child: Text('Erro: $e')),
+                              data: (messages) {
+                                if (messages.isEmpty) {
+                                  return const Center(child: Text('Nenhuma mensagem enviada.'));
+                                }
+                                final sorted = List<Message>.from(messages)
+                                  ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
+                                return ListView.builder(
+                                  padding: const EdgeInsets.all(12),
+                                  itemCount: sorted.length,
+                                  itemBuilder: (ctx, i) {
+                                    final msg = sorted[i];
+                                    return Card(
+                                      child: ListTile(
+                                        leading: CircleAvatar(
+                                          backgroundColor: msg.isBroadcast
+                                              ? Colors.orange
+                                              : const Color(0xFF1FB1C2),
+                                          child: Icon(
+                                            msg.isBroadcast
+                                                ? Icons.broadcast_on_personal
+                                                : Icons.person,
+                                            color: Colors.white,
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                    isThreeLine: true,
-                                  ),
+                                        title: Text(
+                                          msg.isBroadcast
+                                              ? 'Todos os Alunos'
+                                              : (msg.toName ?? 'Aluno'),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const SizedBox(height: 4),
+                                            Text(msg.content),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _formatDate(msg.sentAt),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        isThreeLine: true,
+                                      ),
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          },
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -233,9 +280,7 @@ class MessagesPage extends ConsumerWidget {
 
     if (difference.inDays == 0) {
       if (difference.inHours == 0) {
-        if (difference.inMinutes == 0) {
-          return 'Agora';
-        }
+        if (difference.inMinutes == 0) return 'Agora';
         return '${difference.inMinutes} min atrás';
       }
       return '${difference.inHours} h atrás';
@@ -296,7 +341,8 @@ class _SendMessageDialogState extends ConsumerState<_SendMessageDialog> {
                 hintText: 'Digite sua mensagem...',
               ),
               maxLines: 5,
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Digite a mensagem' : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Digite a mensagem' : null,
             ),
           ],
         ),
@@ -324,19 +370,22 @@ class _SendMessageDialogState extends ConsumerState<_SendMessageDialog> {
                     Navigator.pop(context, true);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(widget.broadcast 
-                            ? 'Mensagem enviada para todos os alunos!' 
+                        content: Text(widget.broadcast
+                            ? 'Mensagem enviada para todos os alunos!'
                             : 'Mensagem enviada!'),
                       ),
                     );
                   }
                 },
           child: _saving
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Enviar'),
         ),
       ],
     );
   }
 }
-
