@@ -92,6 +92,10 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <jvmArguments>
+                        -Djdk.tls.client.protocols=TLSv1.2,TLSv1.3
+                        -Dcom.sun.net.ssl.checkRevocation=false
+                    </jvmArguments>
                 </configuration>
             </plugin>
         </plugins>
