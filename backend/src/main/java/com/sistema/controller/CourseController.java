@@ -4,6 +4,7 @@ import com.sistema.dto.ApiResponse;
 import com.sistema.dto.SubjectDTO;
 import com.sistema.model.*;
 import com.sistema.repository.*;
+import com.sistema.service.AuthService;
 import com.sistema.service.GridFSService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -41,9 +42,28 @@ public class CourseController {
     @Autowired
     private GridFSService gridFSService;
     
+    @Autowired
+    private AuthService authService;
+    
     @GetMapping
-    public ResponseEntity<ApiResponse<SubjectDTO>> getAllCourses() {
-        List<Subject> subjects = subjectRepository.findAll();
+    public ResponseEntity<ApiResponse<SubjectDTO>> getAllCourses(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        List<Subject> subjects;
+        
+        // Se for aluno, mostra apenas matérias em que está matriculado
+        User user = authService.validateToken(authHeader).orElse(null);
+        if (user != null && authService.isStudent(user)) {
+            List<Enrollment> enrollments = enrollmentRepository.findByStudent_Id(user.getId());
+            List<String> subjectIds = enrollments.stream()
+                    .map(e -> e.getSubject().getId())
+                    .collect(Collectors.toList());
+            subjects = subjectRepository.findAllById(subjectIds);
+        } else {
+            // Professores veem todas as matérias
+            subjects = subjectRepository.findAll();
+        }
+        
         List<SubjectDTO> dtos = subjects.stream()
                 .map(s -> {
                     SubjectDTO dto = new SubjectDTO();
@@ -58,7 +78,17 @@ public class CourseController {
     }
     
     @PostMapping
-    public ResponseEntity<Map<String, Object>> createCourse(@RequestBody Map<String, Object> data) {
+    public ResponseEntity<Map<String, Object>> createCourse(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody Map<String, Object> data) {
+        
+        // Verifica se é professor
+        User user = authService.validateToken(authHeader).orElse(null);
+        if (user == null || !authService.isTeacher(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Apenas professores podem criar matérias"));
+        }
+        
         String code = (String) data.get("code");
         String name = (String) data.get("name");
         String description = (String) data.getOrDefault("description", "");
@@ -190,8 +220,16 @@ public class CourseController {
     
     @PostMapping("/{id}/assignments")
     public ResponseEntity<Map<String, Object>> createAssignment(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable String id,
             @RequestBody Map<String, Object> data) {
+        
+        // Verifica se é professor
+        User user = authService.validateToken(authHeader).orElse(null);
+        if (user == null || !authService.isTeacher(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Apenas professores podem criar atividades"));
+        }
         
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
         if (subjectOpt.isEmpty()) {
@@ -231,8 +269,16 @@ public class CourseController {
     
     @PostMapping("/{id}/grades")
     public ResponseEntity<Map<String, Object>> createGrade(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable String id,
             @RequestBody Map<String, Object> data) {
+        
+        // Verifica se é professor
+        User user = authService.validateToken(authHeader).orElse(null);
+        if (user == null || !authService.isTeacher(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Apenas professores podem lançar notas"));
+        }
         
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
         if (subjectOpt.isEmpty()) {
@@ -289,9 +335,17 @@ public class CourseController {
     
     @PostMapping(value = "/{id}/materials", consumes = "multipart/form-data")
     public ResponseEntity<Map<String, Object>> uploadMaterial(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable String id,
             @RequestParam("title") String title,
             @RequestParam("file") MultipartFile file) {
+        
+        // Verifica se é professor
+        User user = authService.validateToken(authHeader).orElse(null);
+        if (user == null || !authService.isTeacher(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Apenas professores podem adicionar materiais"));
+        }
         
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
         if (subjectOpt.isEmpty()) {
@@ -335,7 +389,17 @@ public class CourseController {
     }
     
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> deleteCourse(@PathVariable String id) {
+    public ResponseEntity<Map<String, Object>> deleteCourse(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable String id) {
+        
+        // Verifica se é professor
+        User user = authService.validateToken(authHeader).orElse(null);
+        if (user == null || !authService.isTeacher(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Apenas professores podem deletar matérias"));
+        }
+        
         Optional<Subject> subjectOpt = subjectRepository.findById(id);
         if (subjectOpt.isEmpty()) {
             subjectOpt = subjectRepository.findByCode(id);

@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../providers/courses_provider.dart';
+import '../providers/auth_provider.dart';
 import 'widgets/material_tile.dart';
 import 'widgets/assignment_tile.dart';
 import 'package:go_router/go_router.dart';
@@ -38,20 +39,22 @@ class CoursePage extends ConsumerWidget {
         ],
       ),
 
-      // Botão flutuante
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF1FB1C2),
-        foregroundColor: const Color.fromARGB(255, 255, 255, 255),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 4,
-        icon: const Icon(Icons.add),
-        label: const Text('Nova Atividade'),
-        onPressed: () {
-          context.push('/course/$courseId/create-assignment');
-        },
-      ),
+      // Botão flutuante - apenas para professores
+      floatingActionButton: ref.watch(authStateProvider).user?.role == 'teacher'
+          ? FloatingActionButton.extended(
+              backgroundColor: const Color(0xFF1FB1C2),
+              foregroundColor: const Color.fromARGB(255, 255, 255, 255),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              elevation: 4,
+              icon: const Icon(Icons.add),
+              label: const Text('Nova Atividade'),
+              onPressed: () {
+                context.push('/course/$courseId/create-assignment');
+              },
+            )
+          : null,
 
       body: courseAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -198,18 +201,20 @@ class _StudentsTab extends ConsumerWidget {
                     title: Text(student.name),
                     subtitle: Text('RA: ${student.ra}\nMédia: ${average.toStringAsFixed(1)}'),
                     isThreeLine: true,
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit),
-                      tooltip: 'Lançar nota',
-                      onPressed: () {
-                        final firstAssignmentId =
-                            (assignments.isNotEmpty && assignments[0] is Map)
-                                ? (assignments[0]['id'] ?? '')
-                                : (assignments.isNotEmpty ? assignments[0].id ?? '' : '');
-                        context.push(
-                            '/course/$courseId/grade?studentId=${student.id}&assignmentId=$firstAssignmentId');
-                      },
-                    ),
+                    trailing: ref.watch(authStateProvider).user?.role == 'teacher'
+                        ? IconButton(
+                            icon: const Icon(Icons.edit),
+                            tooltip: 'Lançar nota',
+                            onPressed: () {
+                              final firstAssignmentId =
+                                  (assignments.isNotEmpty && assignments[0] is Map)
+                                      ? (assignments[0]['id'] ?? '')
+                                      : (assignments.isNotEmpty ? assignments[0].id ?? '' : '');
+                              context.push(
+                                  '/course/$courseId/grade?studentId=${student.id}&assignmentId=$firstAssignmentId');
+                            },
+                          )
+                        : null,
                   );
                 },
               ),
@@ -315,30 +320,31 @@ class _MaterialsTabState extends ConsumerState<_MaterialsTab> {
                   },
                 ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final added = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => _AddMaterialDialog(courseId: widget.courseId),
-                );
-                if (added == true) {
-                  // Atualiza a lista
-                  final _ = ref.refresh(courseDetailProvider(widget.courseId));
-                }
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Adicionar Material'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1FB1C2),
-                foregroundColor: Colors.white,
+        if (ref.watch(authStateProvider).user?.role == 'teacher')
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final added = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => _AddMaterialDialog(courseId: widget.courseId),
+                  );
+                  if (added == true) {
+                    // Atualiza a lista
+                    final _ = ref.refresh(courseDetailProvider(widget.courseId));
+                  }
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Adicionar Material'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1FB1C2),
+                  foregroundColor: Colors.white,
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }

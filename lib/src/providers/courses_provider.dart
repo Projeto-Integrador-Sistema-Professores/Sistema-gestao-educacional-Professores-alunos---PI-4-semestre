@@ -13,7 +13,9 @@ import '../models/submission.dart';
 import '../models/material_item.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient(); // for simplicity; can read token from auth service
+  // Por enquanto, retorna sem token - o token será adicionado nas requisições individuais
+  // quando necessário através do AuthService
+  return ApiClient();
 });
 
 final courseServiceProvider = Provider<CourseService>((ref) {

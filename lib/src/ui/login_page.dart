@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../models/user.dart';
 import 'package:go_router/go_router.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -63,13 +64,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                           TextField(
                             controller: _raCtrl,
-                            decoration: const InputDecoration(labelText: 'RA'),
+                            decoration: const InputDecoration(
+                              labelText: 'RA ou Nome@poliedro',
+                              hintText: 'Para alunos: nome@poliedro | Para professores: RA',
+                            ),
                           ),
                           const SizedBox(height: 12),
                           TextField(
                             controller: _passCtrl,
                             obscureText: true,
-                            decoration: const InputDecoration(labelText: 'Senha'),
+                            decoration: const InputDecoration(
+                              labelText: 'Senha',
+                              hintText: 'Para alunos: RA | Para professores: senha',
+                            ),
                           ),
                           const SizedBox(height: 16),
                           if (error != null)
@@ -83,14 +90,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                       loading = true;
                                       error = null;
                                     });
-                                    final ok = await authSvc.login(
+                                    final result = await authSvc.login(
                                         _raCtrl.text.trim(), _passCtrl.text.trim());
                                     setState(() {
                                       loading = false;
                                     });
-                                    if (ok) {
+                                    if (result != null) {
+                                      final user = User.fromJson(result['user'] as Map<String, dynamic>);
                                       ref.read(authStateProvider.notifier).state =
-                                          AuthState(isAuthenticated: true);
+                                          AuthState(isAuthenticated: true, user: user);
                                       if (context.mounted) context.go('/home');
                                     } else {
                                       setState(() {
@@ -107,12 +115,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 : const Text('Entrar'),
                           ),
                           const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () {
-                              _raCtrl.text = 'demo';
-                              _passCtrl.text = 'demo';
-                            },
-                            child: const Text('Usar credenciais demo'),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              TextButton(
+                                onPressed: () {
+                                  _raCtrl.text = 'demo';
+                                  _passCtrl.text = 'demo';
+                                },
+                                child: const Text('Demo Professor'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  _raCtrl.text = 'demo@poliedro';
+                                  _passCtrl.text = 'demo';
+                                },
+                                child: const Text('Demo Aluno'),
+                              ),
+                            ],
                           ),
                         ],
                       ),

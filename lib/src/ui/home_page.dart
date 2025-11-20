@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'create_course_page.dart';
 import '../models/subject.dart';
 import '../services/subject_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -269,11 +270,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Erro ao carregar: $e')),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _onCreateCourse,
-        tooltip: 'Criar Matéria',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: ref.watch(authStateProvider).user?.role == 'teacher'
+          ? FloatingActionButton(
+              onPressed: _onCreateCourse,
+              tooltip: 'Criar Matéria',
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }

@@ -27,6 +27,15 @@ class ApiClient {
     }
     return ApiClient._(dio);
   }
+  
+  // Método para atualizar o token dinamicamente
+  void setToken(String? token) {
+    if (token != null && token.isNotEmpty) {
+      dio.options.headers['Authorization'] = 'Bearer $token';
+    } else {
+      dio.options.headers.remove('Authorization');
+    }
+  }
 
   // Método para fazer POST com multipart/form-data
   Future<Response> postMultipart(String path, {required FormData formData}) async {
@@ -50,7 +59,10 @@ class ApiClient {
     return dio.post(path, data: formData);
   }
 
-  Future<Response> get(String path) async {
+  Future<Response> get(String path, {String? token}) async {
+    if (token != null) {
+      setToken(token);
+    }
     if (useFakeApi) {
       await Future.delayed(const Duration(milliseconds: 250));
       return Response(
@@ -67,7 +79,10 @@ class ApiClient {
     }
   }
 
-  Future<Response> post(String path, {dynamic data}) async {
+  Future<Response> post(String path, {dynamic data, String? token}) async {
+    if (token != null) {
+      setToken(token);
+    }
     if (useFakeApi) {
       await Future.delayed(const Duration(milliseconds: 250));
       return Response(

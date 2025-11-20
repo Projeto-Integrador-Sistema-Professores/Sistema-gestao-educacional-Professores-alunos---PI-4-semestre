@@ -5,8 +5,10 @@ import com.sistema.model.Assignment;
 import com.sistema.model.Submission;
 import com.sistema.model.User;
 import com.sistema.repository.AssignmentRepository;
+import com.sistema.repository.EnrollmentRepository;
 import com.sistema.repository.SubmissionRepository;
 import com.sistema.repository.UserRepository;
+import com.sistema.service.AuthService;
 import com.sistema.service.GridFSService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -32,7 +34,13 @@ public class AssignmentController {
     private UserRepository userRepository;
     
     @Autowired
+    private EnrollmentRepository enrollmentRepository;
+    
+    @Autowired
     private GridFSService gridFSService;
+    
+    @Autowired
+    private AuthService authService;
     
     @GetMapping("/{id}/submissions")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSubmissions(@PathVariable String id) {
@@ -58,10 +66,24 @@ public class AssignmentController {
     
     @PostMapping("/{assignmentId}/submissions")
     public ResponseEntity<Map<String, Object>> submitAssignment(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable String assignmentId,
             @RequestBody Map<String, Object> data) {
         
-        String studentId = (String) data.get("studentId");
+        // Verifica autenticação
+        User user = authService.validateToken(authHeader).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Usuário não autenticado"));
+        }
+        
+        // Apenas alunos podem enviar submissões
+        if (!authService.isStudent(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Apenas alunos podem enviar atividades"));
+        }
+        
+        String studentId = user.getId(); // Usa o ID do usuário autenticado
         String studentName = (String) data.get("studentName");
         String fileName = (String) data.get("fileName");
         String fileUrl = (String) data.get("fileUrl");
@@ -74,6 +96,24 @@ public class AssignmentController {
             return ResponseEntity.badRequest().build();
         }
         
+        Assignment assignment = assignmentOpt.get();
+        User student = studentOpt.get();
+        
+        // Verifica se o aluno está matriculado na matéria da atividade
+        boolean isEnrolled = enrollmentRepository.existsByStudent_IdAndSubject_Id(
+                studentId, assignment.getSubject().getId());
+        
+        if (!isEnrolled) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Aluno não está matriculado nesta matéria"));
+        }
+        
+        // Verifica se a atividade ainda está aberta (dueDate não passou)
+        if (assignment.getDueDate() != null && assignment.getDueDate().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "Prazo para envio da atividade expirado"));
+        }
+        
         // Verifica se já existe submissão
         Optional<Submission> existingSubmission = submissionRepository.findByAssignment_IdAndStudent_Id(assignmentId, studentId);
         Submission submission;
@@ -83,8 +123,8 @@ public class AssignmentController {
         } else {
             submission = new Submission();
             submission.setId(UUID.randomUUID().toString());
-            submission.setAssignment(assignmentOpt.get());
-            submission.setStudent(studentOpt.get());
+            submission.setAssignment(assignment);
+            submission.setStudent(student);
         }
         
         // Se fileUrl contém base64, precisa fazer upload
@@ -120,4 +160,3 @@ public class AssignmentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
-
