@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  shared_preferences: ^2.0.15
 
   cupertino_icons: ^1.0.5
   flutter_riverpod: ^2.3.6
@@ -17,9 +18,16 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   intl: ^0.18.0
   path_provider: ^2.0.14
+  uuid: ^3.0.6
+  file_picker: ^5.2.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
-  
+
+flutter:
+  uses-material-design: true  # ✅ ESSA LINHA ATIVA OS ÍCONES DO MATERIAL DESIGN
+
+  assets:
+    - assets/images/

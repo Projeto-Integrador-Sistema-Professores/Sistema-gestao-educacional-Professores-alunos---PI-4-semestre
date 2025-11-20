@@ -51,4 +51,11 @@ class JsonStorage {
     data['grades'] = grades;
     await writeCourseData(courseId, data);
   }
+
+  Future<void> clearCourse(String courseId) async {
+    try {
+      final key = _keyForCourse(courseId);
+      html.window.localStorage.remove(key);
+    } catch (_) {}
+  }
 }

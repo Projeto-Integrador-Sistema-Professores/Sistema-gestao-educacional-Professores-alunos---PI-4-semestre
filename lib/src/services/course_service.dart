@@ -48,7 +48,7 @@ class CourseService {
       'assignmentId': assignmentId,
       'score': score,
     };
-    final res = await client.post('/courses/$courseId/grades', data: payload);
+    await client.post('/courses/$courseId/grades', data: payload);
     // Fake returns payload; build Grade locally
     return Grade(
       studentId: studentId,
@@ -72,5 +72,10 @@ class CourseService {
     };
     final res = await client.post('/courses/$courseId/assignments', data: payload);
     return Assignment.fromJson(Map<String, dynamic>.from(res.data));
+  }
+
+  Future<bool> deleteCourse(String id) async {
+    final response = await client.delete('/courses/$id');
+    return (response.data is Map && (response.data['ok'] == true));
   }
 }
