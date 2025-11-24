@@ -14,30 +14,33 @@ class MessagesPage extends ConsumerWidget {
     final studentsAsync = ref.watch(allStudentsProvider);
     final allMessagesAsync = ref.watch(messagesProvider(null));
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      backgroundColor: Colors.transparent,
-
-      appBar: AppBar(
-        title: const Text('Mensagens'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.black),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Mensagens'),
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Atualizar',
+              onPressed: () {
+                final _ = ref.refresh(messagesProvider(null));
+              },
+            ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Alunos'),
+              Tab(text: 'Mensagens Enviadas'),
+            ],
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Atualizar',
-            onPressed: () {
-              final _ = ref.refresh(messagesProvider(null));
-            },
-          ),
-        ],
-      ),
 
       drawer: Drawer(
         child: SafeArea(
@@ -116,149 +119,69 @@ class MessagesPage extends ConsumerWidget {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          // Botão para enviar mensagem para todos - apenas para professores
-          if (ref.watch(authStateProvider).user?.role == 'teacher')
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final sent = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => _SendMessageDialog(
-                        broadcast: true,
+        body: TabBarView(
+          children: [
+            // Aba de alunos com botão no rodapé
+            _StudentsTabWithButton(
+              studentsAsync: studentsAsync,
+            ),
+            // Aba de mensagens enviadas
+            allMessagesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, s) => Center(child: Text('Erro: $e')),
+              data: (messages) {
+                if (messages.isEmpty) {
+                  return const Center(child: Text('Nenhuma mensagem enviada.'));
+                }
+                final sorted = List<Message>.from(messages)
+                  ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
+                return ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: sorted.length,
+                  itemBuilder: (ctx, i) {
+                    final msg = sorted[i];
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: msg.isBroadcast
+                              ? Colors.orange
+                              : const Color(0xFF1FB1C2),
+                          child: Icon(
+                            msg.isBroadcast
+                                ? Icons.broadcast_on_personal
+                                : Icons.person,
+                            color: Colors.white,
+                          ),
+                        ),
+                        title: Text(
+                          msg.isBroadcast
+                              ? 'Todos os Alunos'
+                              : (msg.toName ?? 'Aluno'),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(msg.content),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatDate(msg.sentAt),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        isThreeLine: true,
                       ),
                     );
-                    if (sent == true) {
-                      final _ = ref.refresh(messagesProvider(null));
-                    }
                   },
-                  icon: const Icon(Icons.broadcast_on_personal),
-                  label: const Text('Enviar para Todos'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1FB1C2),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
+                );
+              },
             ),
-          // Lista de alunos ou mensagens
-          Expanded(
-            child: DefaultTabController(
-              length: 2,
-              child: Column(
-                children: [
-                  const TabBar(
-                    tabs: [
-                      Tab(text: 'Alunos'),
-                      Tab(text: 'Mensagens Enviadas'),
-                    ],
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        // Aba de alunos
-                        studentsAsync.when(
-                          loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, s) => Center(child: Text('Erro: $e')),
-                          data: (students) {
-                            if (students.isEmpty) {
-                              return const Center(child: Text('Nenhum aluno cadastrado.'));
-                            }
-                            return ListView.builder(
-                              padding: const EdgeInsets.all(12),
-                              itemCount: students.length,
-                              itemBuilder: (ctx, i) {
-                                final student = students[i];
-                                return ListTile(
-                                  leading: const CircleAvatar(child: Icon(Icons.person)),
-                                  title: Text(student['name'] ?? ''),
-                                  subtitle: Text('RA: ${student['ra'] ?? ''}'),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () async {
-                                    final sent = await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => _SendMessageDialog(
-                                        studentId: student['id']?.toString(),
-                                        studentName: student['name']?.toString(),
-                                        broadcast: false,
-                                      ),
-                                    );
-                                    if (sent == true) {
-                                      final _ = ref.refresh(messagesProvider(null));
-                                    }
-                                  },
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        // Aba de mensagens enviadas
-                        allMessagesAsync.when(
-                          loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, s) => Center(child: Text('Erro: $e')),
-                          data: (messages) {
-                            if (messages.isEmpty) {
-                              return const Center(child: Text('Nenhuma mensagem enviada.'));
-                            }
-                            final sorted = List<Message>.from(messages)
-                              ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
-                            return ListView.builder(
-                              padding: const EdgeInsets.all(12),
-                              itemCount: sorted.length,
-                              itemBuilder: (ctx, i) {
-                                final msg = sorted[i];
-                                return Card(
-                                  child: ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundColor: msg.isBroadcast
-                                          ? Colors.orange
-                                          : const Color(0xFF1FB1C2),
-                                      child: Icon(
-                                        msg.isBroadcast
-                                            ? Icons.broadcast_on_personal
-                                            : Icons.person,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    title: Text(
-                                      msg.isBroadcast
-                                          ? 'Todos os Alunos'
-                                          : (msg.toName ?? 'Aluno'),
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(height: 4),
-                                        Text(msg.content),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _formatDate(msg.sentAt),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    isThreeLine: true,
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -280,6 +203,142 @@ class MessagesPage extends ConsumerWidget {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
+  }
+}
+
+// Widget para a aba de alunos com botão no rodapé
+class _StudentsTabWithButton extends ConsumerWidget {
+  final AsyncValue<List<Map<String, dynamic>>> studentsAsync;
+
+  const _StudentsTabWithButton({
+    required this.studentsAsync,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isTeacher = ref.watch(authStateProvider).user?.role == 'teacher';
+
+    return studentsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Erro: $e')),
+      data: (students) {
+        if (students.isEmpty) {
+          return Column(
+            children: [
+              const Expanded(
+                child: Center(child: Text('Nenhum aluno cadastrado.')),
+              ),
+              if (isTeacher)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.2),
+                        spreadRadius: 1,
+                        blurRadius: 4,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final sent = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => _SendMessageDialog(
+                          broadcast: true,
+                        ),
+                      );
+                      if (sent == true) {
+                        final _ = ref.refresh(messagesProvider(null));
+                      }
+                    },
+                    icon: const Icon(Icons.broadcast_on_personal, size: 20),
+                    label: const Text('Enviar para Todos'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1FB1C2),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: students.length,
+                itemBuilder: (ctx, i) {
+                  final student = students[i];
+                  return ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.person)),
+                    title: Text(student['name'] ?? ''),
+                    subtitle: Text('RA: ${student['ra'] ?? ''}'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      final sent = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => _SendMessageDialog(
+                          studentId: student['id']?.toString(),
+                          studentName: student['name']?.toString(),
+                          broadcast: false,
+                        ),
+                      );
+                      if (sent == true) {
+                        final _ = ref.refresh(messagesProvider(null));
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+            // Botão no rodapé - apenas para professores
+            if (isTeacher)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      spreadRadius: 1,
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final sent = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => _SendMessageDialog(
+                        broadcast: true,
+                      ),
+                    );
+                    if (sent == true) {
+                      final _ = ref.refresh(messagesProvider(null));
+                    }
+                  },
+                  icon: const Icon(Icons.broadcast_on_personal, size: 20),
+                  label: const Text('Enviar para Todos'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1FB1C2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 }
 
