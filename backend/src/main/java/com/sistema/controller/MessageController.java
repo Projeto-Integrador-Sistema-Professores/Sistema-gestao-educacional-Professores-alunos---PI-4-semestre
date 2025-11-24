@@ -307,9 +307,36 @@ public class MessageController {
             Message message = messageOpt.get();
             
             // Verifica se a mensagem foi enviada pelo professor logado
-            if (message.getFrom() == null || !user.getId().equals(message.getFrom().getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(Map.of("error", "Você só pode deletar suas próprias mensagens"));
+            // Como DBRef pode não estar carregado, usa uma query para verificar diretamente no banco
+            String messageFromId = null;
+            if (message.getFrom() != null && message.getFrom().getId() != null) {
+                messageFromId = message.getFrom().getId();
+            }
+            
+            // Se o DBRef não estiver carregado, verifica usando uma query direta
+            if (messageFromId == null) {
+                // Busca mensagens do professor e verifica se esta mensagem está na lista
+                try {
+                    List<Message> teacherMessages = messageRepository.findByFrom_IdOrderBySentAtDesc(user.getId());
+                    boolean belongsToTeacher = teacherMessages.stream()
+                            .anyMatch(m -> m != null && m.getId() != null && m.getId().equals(id));
+                    if (!belongsToTeacher) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                .body(Map.of("error", "Você só pode deletar suas próprias mensagens"));
+                    }
+                    // Se chegou aqui, a mensagem pertence ao professor
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    // Em caso de erro na query, retorna erro
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(Map.of("error", "Erro ao verificar permissão: " + e.getMessage()));
+                }
+            } else {
+                // Se o fromId foi obtido, verifica diretamente
+                if (!user.getId().equals(messageFromId)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "Você só pode deletar suas próprias mensagens"));
+                }
             }
             
             messageRepository.deleteById(id);
