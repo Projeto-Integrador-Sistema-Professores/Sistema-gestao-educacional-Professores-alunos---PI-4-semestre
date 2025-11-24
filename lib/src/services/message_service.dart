@@ -75,5 +75,27 @@ class MessageService {
       rethrow;
     }
   }
+
+  Future<void> deleteMessage(String messageId) async {
+    final token = await authService.getToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Usuário não autenticado. Faça login novamente.');
+    }
+    
+    try {
+      final res = await client.delete('/messages/$messageId', token: token);
+      
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        if (res.data != null && res.data['ok'] != true && res.data['error'] != null) {
+          throw Exception(res.data['error']);
+        }
+      } else {
+        throw Exception('Erro ${res.statusCode}: ${res.data['error'] ?? 'Erro desconhecido'}');
+      }
+    } catch (e) {
+      print('Erro ao deletar mensagem: $e');
+      rethrow;
+    }
+  }
 }
 

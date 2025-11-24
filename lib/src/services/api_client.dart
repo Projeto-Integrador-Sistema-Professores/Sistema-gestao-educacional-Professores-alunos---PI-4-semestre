@@ -119,7 +119,7 @@ class ApiClient {
     return dio.put(path, data: data);
   }
 
-  Future<Response> delete(String path) async {
+  Future<Response> delete(String path, {String? token}) async {
     if (useFakeApi) {
       await Future.delayed(const Duration(milliseconds: 200));
       return Response(
@@ -128,7 +128,19 @@ class ApiClient {
         data: await _fakeDelete(path),
       );
     }
-    return dio.delete(path);
+    
+    // Configura headers para a requisição
+    final options = Options();
+    if (token != null && token.isNotEmpty) {
+      options.headers = {'Authorization': 'Bearer $token'};
+    }
+    
+    try {
+      return await dio.delete(path, options: options);
+    } catch (e) {
+      print('Erro ao fazer DELETE $path: $e');
+      rethrow;
+    }
   }
 
   // --- helpers for fake mode that now persist to JSON ---
@@ -579,6 +591,16 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _fakeDelete(String path) async {
+    // DELETE /messages/{id}
+    if (path.startsWith('/messages/')) {
+      final parts = path.split('/');
+      final messageId = parts[2];
+      
+      final storage = MessageStorage();
+      await storage.removeMessage(messageId);
+      return {"ok": true, "message": "Mensagem deletada com sucesso"};
+    }
+    
     // DELETE /courses/{id}
     if (path.startsWith('/courses/')) {
       final parts = path.split('/');

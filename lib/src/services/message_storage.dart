@@ -35,5 +35,11 @@ class MessageStorage {
       m['toId'] == studentId || m['isBroadcast'] == true
     ).toList();
   }
+
+  Future<void> removeMessage(String messageId) async {
+    final list = await loadMessages();
+    list.removeWhere((m) => m['id'] == messageId);
+    await saveMessages(list);
+  }
 }
 

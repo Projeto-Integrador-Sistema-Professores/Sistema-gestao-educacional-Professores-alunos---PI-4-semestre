@@ -130,10 +130,16 @@ class MessagesPage extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, s) => Center(child: Text('Erro: $e')),
               data: (messages) {
-                if (messages.isEmpty) {
+                // Filtra apenas mensagens do professor logado (garantia adicional)
+                final currentUser = ref.watch(authStateProvider).user;
+                final filteredMessages = currentUser != null
+                    ? messages.where((m) => m.fromId == currentUser.id).toList()
+                    : messages;
+                
+                if (filteredMessages.isEmpty) {
                   return const Center(child: Text('Nenhuma mensagem enviada.'));
                 }
-                final sorted = List<Message>.from(messages)
+                final sorted = List<Message>.from(filteredMessages)
                   ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
                 return ListView.builder(
                   padding: const EdgeInsets.all(12),
@@ -172,6 +178,59 @@ class MessagesPage extends ConsumerWidget {
                               ),
                             ),
                           ],
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Confirmar exclusão'),
+                                content: const Text('Deseja realmente excluir esta mensagem?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancelar'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                    ),
+                                    child: const Text('Excluir'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            
+                            if (confirmed == true) {
+                              try {
+                                final delete = ref.read(deleteMessageProvider);
+                                await delete(msg.id);
+                                
+                                if (ctx.mounted) {
+                                  // Atualiza a lista de mensagens
+                                  final _ = ref.refresh(messagesProvider(null));
+                                  
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Mensagem excluída com sucesso!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Erro ao excluir mensagem: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          },
                         ),
                         isThreeLine: true,
                       ),

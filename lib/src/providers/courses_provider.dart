@@ -141,6 +141,13 @@ final sendMessageProvider = Provider((ref) {
   };
 });
 
+final deleteMessageProvider = Provider((ref) {
+  final svc = ref.watch(messageServiceProvider);
+  return (String messageId) async {
+    return svc.deleteMessage(messageId);
+  };
+});
+
 // Submissions
 final submissionServiceProvider = Provider<SubmissionService>((ref) {
   final client = ref.watch(apiClientProvider);
